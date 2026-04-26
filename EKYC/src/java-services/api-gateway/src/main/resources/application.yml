@@ -1,0 +1,77 @@
+server:
+  port: ${GATEWAY_PORT:3000}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - ${FRONTEND_URL:http://localhost:5173}
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+      httpclient:
+        response-timeout: 60s
+        connect-timeout: 5000
+      routes:
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:3001}
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: auth
+                fallbackUri: forward:/fallback/auth
+
+        - id: kyc-service
+          uri: ${KYC_SERVICE_URL:http://localhost:3002}
+          predicates:
+            - Path=/api/kyc/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: kyc
+                fallbackUri: forward:/fallback/kyc
+
+        - id: kyc-service-health
+          uri: ${KYC_SERVICE_URL:http://localhost:3002}
+          predicates:
+            - Path=/health/kyc
+          filters:
+            - RewritePath=/health/kyc, /health
+
+        - id: auth-service-health
+          uri: ${AUTH_SERVICE_URL:http://localhost:3001}
+          predicates:
+            - Path=/health/auth
+          filters:
+            - RewritePath=/health/auth, /health
+
+resilience4j:
+  timelimiter:
+    instances:
+      kyc:
+        timeoutDuration: 60s
+      auth:
+        timeoutDuration: 30s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+logging:
+  level:
+    com.tng.ekyc: INFO
+    org.springframework.cloud.gateway: WARN

@@ -1,0 +1,5 @@
+rootProject.name = 'ekyc-java-services'
+
+include 'auth-service'
+include 'kyc-service'
+include 'api-gateway'

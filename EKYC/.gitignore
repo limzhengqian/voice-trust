@@ -1,0 +1,28 @@
+# Secrets
+.env
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+*.iml
+
+# Build outputs
+src/frontend/dist/
+src/java-services/*/build/
+
+# Gradle
+.gradle/
+build/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# Claude tooling
+.claude-flow/
+.claude/
+.mcp.json

@@ -1,0 +1,2820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>TNG VoiceTrust — Trust Link Flows</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  :root{
+    --tng-blue:#1A4FBE;
+    --tng-blue-deep:#0E3A99;
+    --tng-blue-soft:#3D6FE0;
+    --tng-yellow:#FFD500;
+    --tng-yellow-soft:#FFF4C2;
+    --tng-bg:#F2F4F9;
+    --tng-card:#FFFFFF;
+    --tng-text:#0B1B3F;
+    --tng-text-muted:#6B7693;
+    --tng-line:#E6EAF2;
+    --tng-success:#1FB36B;
+    --tng-warn:#F59E0B;
+    --tng-danger:#E0354B;
+    --tng-purple:#5B3FD9;
+    --shadow-card:0 4px 20px rgba(15,30,80,0.06);
+    --shadow-pop:0 12px 40px rgba(15,30,80,0.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:'DM Sans',system-ui,sans-serif;
+    background:#0B1B3F;
+    color:var(--tng-text);
+    display:flex; gap:24px; flex-wrap:wrap;
+    align-items:center; justify-content:center;
+    min-height:100vh; padding:20px;
+  }
+  .phone{
+    width:390px; height:844px; max-height:96vh;
+    background:var(--tng-bg);
+    border-radius:42px;
+    border:8px solid #0a0a0a;
+    box-shadow:var(--shadow-pop), 0 0 0 2px #1d1d1d, inset 0 0 0 1px rgba(255,255,255,0.05);
+    position:relative; overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .notch{
+    position:absolute; top:8px; left:50%; transform:translateX(-50%);
+    width:120px; height:28px;
+    background:#0a0a0a;
+    border-radius:0 0 18px 18px;
+    z-index:50;
+  }
+  .role-switcher{
+    position:fixed; top:20px; right:20px;
+    background:#fff; border-radius:14px;
+    padding:6px; display:flex; gap:4px;
+    box-shadow:var(--shadow-pop);
+    z-index:200;
+  }
+  .role-switcher button{
+    border:none; background:transparent;
+    padding:8px 14px; border-radius:10px;
+    font-family:'Sora',sans-serif; font-weight:600; font-size:12px;
+    cursor:pointer; color:var(--tng-text-muted);
+  }
+  .role-switcher button.active{background:var(--tng-blue); color:#fff}
+  .role-tag{
+    position:absolute; top:50px; left:16px;
+    background:rgba(255,255,255,.95); backdrop-filter:blur(8px);
+    color:var(--tng-text);
+    padding:5px 10px; border-radius:8px;
+    font-size:10px; font-weight:700; letter-spacing:.5px;
+    z-index:45; display:flex; align-items:center; gap:5px;
+  }
+  .role-tag .dot{width:6px;height:6px;border-radius:50%;background:var(--tng-success)}
+  .statusbar{
+    height:44px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 24px;
+    font-family:'Sora',sans-serif; font-weight:600; font-size:14px;
+    color:#fff; background:var(--tng-blue);
+  }
+  .statusbar .right{display:flex;gap:6px;align-items:center;font-size:12px}
+  .pages{flex:1; position:relative; overflow:hidden}
+  .page{
+    position:absolute; inset:0;
+    overflow-y:auto;
+    transform:translateX(100%);
+    transition:transform .35s cubic-bezier(.4,0,.2,1);
+    background:var(--tng-bg);
+  }
+  .page.active{transform:translateX(0)}
+  .page::-webkit-scrollbar{width:0;display:none}
+
+  /* ========= HOME ========= */
+  .home-header{
+    background:linear-gradient(180deg, var(--tng-blue) 0%, var(--tng-blue-deep) 100%);
+    padding:8px 20px 80px;
+    color:#fff; position:relative;
+  }
+  .home-header::before{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(circle at 80% 0%, rgba(255,213,0,.15), transparent 40%);
+    pointer-events:none;
+  }
+  .top-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;position:relative}
+  .country-pill{
+    background:rgba(255,255,255,.18);
+    border-radius:20px; padding:6px 12px;
+    display:flex;align-items:center;gap:6px;
+    font-size:13px;font-weight:600;
+    backdrop-filter:blur(10px);
+  }
+  .search{
+    flex:1; background:#fff;
+    border-radius:22px; padding:9px 14px;
+    display:flex;align-items:center;gap:8px;
+    color:var(--tng-text-muted); font-size:13px;
+  }
+  .avatar{
+    width:36px;height:36px;border-radius:50%;
+    background:linear-gradient(135deg,#FFD500,#FFA800);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;color:var(--tng-text);
+    border:2px solid rgba(255,255,255,.3);
+  }
+  .balance-block{position:relative; padding:0 4px}
+  .balance-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .balance-row .shield{
+    width:22px;height:22px;border-radius:50%;
+    background:rgba(255,255,255,.2);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .balance-amt{font-family:'Sora',sans-serif;font-size:30px; font-weight:700;}
+  .balance-amt .rm{font-size:22px;margin-right:4px;opacity:.9}
+  .balance-amt .stars{letter-spacing:6px;font-size:24px}
+  .view-asset{font-size:13px;opacity:.85;margin-bottom:14px}
+  .view-asset::after{content:' ›'}
+  .quick-actions{display:flex;gap:10px;margin-top:6px}
+  .quick-actions button{
+    background:transparent;
+    border:1.5px solid rgba(255,255,255,.5);
+    color:#fff;
+    padding:9px 18px; border-radius:22px;
+    font-size:13px;font-weight:600;
+    font-family:inherit; cursor:pointer;
+  }
+  .quick-actions button.ghost{border:none;padding:9px 4px}
+  .quick-actions button.ghost::after{content:' ›'}
+  .feature-grid{
+    margin:-50px 16px 0;
+    background:#fff; border-radius:18px;
+    padding:18px 6px;
+    display:grid; grid-template-columns:repeat(4,1fr);
+    box-shadow:var(--shadow-card);
+    position:relative; z-index:5;
+  }
+  .feat{
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    cursor:pointer; transition:transform .15s;
+  }
+  .feat:active{transform:scale(.92)}
+  .feat-icon{width:30px;height:30px;color:var(--tng-blue)}
+  .feat-label{font-size:12px;font-weight:500;color:var(--tng-text)}
+  .vt-banner{
+    margin:14px 16px 0;
+    background:linear-gradient(135deg, #1A4FBE 0%, #5B3FD9 100%);
+    border-radius:18px; padding:16px;
+    color:#fff; position:relative; overflow:hidden;
+    cursor:pointer;
+    box-shadow:var(--shadow-card);
+  }
+  .vt-banner::before{
+    content:''; position:absolute; right:-20px; top:-20px;
+    width:140px;height:140px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,213,0,.25),transparent 70%);
+  }
+  .vt-tag{
+    display:inline-block;
+    background:var(--tng-yellow);
+    color:var(--tng-text);
+    font-size:10px;font-weight:800;
+    padding:3px 8px;border-radius:6px;
+    margin-bottom:8px;letter-spacing:.5px;
+  }
+  .vt-title{font-family:'Sora',sans-serif;font-size:18px;font-weight:700;line-height:1.25; margin-bottom:4px;}
+  .vt-title b{color:var(--tng-yellow)}
+  .vt-sub{font-size:12px;opacity:.85;margin-bottom:10px}
+  .vt-stats{display:flex;gap:16px;margin-top:10px;position:relative}
+  .vt-stat{font-size:11px;opacity:.85}
+  .vt-stat b{display:block;font-family:'Sora',sans-serif;font-size:18px;font-weight:700;opacity:1;color:#fff}
+  .vt-stat b.yellow{color:var(--tng-yellow)}
+  .tg-actions{
+    margin:12px 16px 0;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+  }
+  .tg-action{
+    background:#fff; border-radius:14px;
+    padding:12px 6px;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    cursor:pointer; box-shadow:var(--shadow-card);
+    transition:transform .15s;
+    position:relative;
+  }
+  .tg-action:active{transform:scale(.95)}
+  .tg-action .ic-wrap{
+    width:36px;height:36px; border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .tg-action .ic-wrap svg{width:18px;height:18px}
+  .tg-action .lbl{font-size:10px;font-weight:600;text-align:center;line-height:1.2}
+  .tg-action .badge-dot{
+    position:absolute; top:6px; right:6px;
+    width:8px;height:8px;border-radius:50%;
+    background:var(--tng-danger);
+    box-shadow:0 0 0 2px #fff;
+  }
+  .info-grid{margin:14px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .info-card{
+    background:#fff;border-radius:14px;padding:14px;
+    box-shadow:var(--shadow-card);
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .info-card .lbl{font-size:11px;color:var(--tng-text-muted);font-weight:500}
+  .info-card .val{font-size:15px;font-weight:700;font-family:'Sora',sans-serif}
+  .bottom-spacer{height:90px}
+  .bottom-nav{
+    position:absolute; bottom:0; left:0; right:0;
+    background:#fff; height:74px;
+    display:flex; align-items:flex-start; justify-content:space-around;
+    padding-top:8px;
+    border-top:1px solid var(--tng-line);
+    z-index:40;
+  }
+  .nav-item{
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    flex:1; cursor:pointer;
+    color:var(--tng-text-muted);
+    font-size:10px;font-weight:500;
+  }
+  .nav-item.active{color:var(--tng-blue)}
+  .nav-item svg{width:22px;height:22px}
+  .nav-scan{
+    flex:none !important;
+    width:60px;height:60px;
+    background:var(--tng-blue);
+    border-radius:50%;
+    margin-top:-22px;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 6px 18px rgba(26,79,190,.45);
+    color:#fff;
+  }
+  .nav-scan svg{width:28px;height:28px}
+
+  /* ========= GENERIC SUBPAGE ========= */
+  .sub-header{
+    background:linear-gradient(180deg, var(--tng-blue) 0%, var(--tng-blue-deep) 100%);
+    color:#fff;
+    padding:10px 16px 22px;
+    position:relative;
+  }
+  .sub-nav{display:flex;align-items:center;gap:12px;height:40px}
+  .sub-back{
+    width:36px;height:36px;border-radius:50%;
+    background:rgba(255,255,255,.15);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .sub-back svg{width:18px;height:18px;color:#fff}
+  .sub-title{font-family:'Sora',sans-serif;font-weight:700;font-size:17px;flex:1}
+  .sub-action{
+    font-size:12px;font-weight:600;
+    background:rgba(255,255,255,.18);
+    padding:6px 12px;border-radius:14px;
+    cursor:pointer;
+  }
+
+  /* ========= TRUST NETWORK ========= */
+  .tg-summary{
+    margin:14px 16px;
+    background:#fff;
+    border-radius:18px;
+    padding:18px;
+    box-shadow:var(--shadow-card);
+    display:flex; align-items:center; gap:18px;
+  }
+  .tg-score-mini{
+    width:80px; height:80px;
+    flex-shrink:0;
+    position:relative;
+  }
+  .tg-score-mini svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .tg-score-mini .num{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:'Sora',sans-serif;
+  }
+  .tg-score-mini .num b{font-size:22px;font-weight:800;line-height:1}
+  .tg-score-mini .num span{font-size:9px;color:var(--tng-text-muted);margin-top:2px}
+  .tg-summary-body{flex:1; min-width:0}
+  .tg-summary-body .ttl{font-size:11px;color:var(--tng-text-muted);font-weight:600;text-transform:uppercase;letter-spacing:1px}
+  .tg-summary-body .role{font-family:'Sora',sans-serif;font-size:16px;font-weight:700;margin-top:2px}
+  .tg-summary-body .meta{font-size:11px;color:var(--tng-text-muted);margin-top:4px}
+  .tg-summary-body .meta b{color:var(--tng-success);font-weight:700}
+  .filter-tabs{
+    margin:0 16px 12px;
+    display:flex; gap:6px;
+    overflow-x:auto;
+  }
+  .filter-tabs::-webkit-scrollbar{display:none}
+  .filter-tab{
+    flex-shrink:0;
+    padding:6px 12px; border-radius:14px;
+    background:#fff; border:1.5px solid var(--tng-line);
+    font-size:11px; font-weight:600; color:var(--tng-text-muted);
+    cursor:pointer; white-space:nowrap;
+  }
+  .filter-tab.active{background:var(--tng-blue);border-color:var(--tng-blue);color:#fff;}
+  .graph-wrap{
+    margin:0 16px 14px;
+    background:#fff;
+    border-radius:18px;
+    padding:14px;
+    box-shadow:var(--shadow-card);
+    height:300px;
+    position:relative; overflow:hidden;
+  }
+  .graph-svg{width:100%;height:100%}
+  .graph-legend{
+    position:absolute;bottom:10px;left:10px;
+    display:flex;flex-direction:column;gap:4px;
+    font-size:10px;color:var(--tng-text-muted);
+    background:rgba(255,255,255,.85);
+    padding:6px 8px; border-radius:8px;
+  }
+  .legend-item{display:flex;align-items:center;gap:6px}
+  .legend-dot{width:10px;height:10px;border-radius:50%}
+  .members-block{margin:0 16px 16px}
+  .members-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .members-header h3{font-family:'Sora',sans-serif;font-size:14px;font-weight:700}
+  .add-trust-btn{
+    background:var(--tng-blue); color:#fff;
+    border:none;
+    padding:8px 14px; border-radius:14px;
+    font-family:'Sora',sans-serif; font-weight:700; font-size:12px;
+    cursor:pointer;
+    display:flex; align-items:center; gap:6px;
+    box-shadow:0 4px 12px rgba(26,79,190,.3);
+  }
+  .add-trust-btn svg{width:14px;height:14px}
+  .member-card{
+    background:#fff;border-radius:14px;padding:12px;
+    box-shadow:var(--shadow-card);
+    display:flex;align-items:center;gap:12px;
+    margin-bottom:8px;
+    cursor:pointer;
+  }
+  .member-card .av{
+    width:42px;height:42px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Sora',sans-serif;font-weight:700;color:#fff;
+    flex-shrink:0;
+  }
+  .member-card .body{flex:1;min-width:0}
+  .member-card .name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .member-card .role-tag-mini{
+    font-size:9px;font-weight:700;
+    padding:2px 6px;border-radius:6px;
+    background:rgba(26,79,190,.1);
+    color:var(--tng-blue);
+    text-transform:uppercase; letter-spacing:.5px;
+  }
+  .member-card .role-tag-mini.guarantor{background:rgba(91,63,217,.1);color:var(--tng-purple)}
+  .member-card .role-tag-mini.guarantee{background:rgba(31,179,107,.1);color:var(--tng-success)}
+  .member-card .meta{font-size:11px;color:var(--tng-text-muted);display:flex;gap:6px;align-items:center;margin-top:2px}
+  .member-card .meta .sep{width:3px;height:3px;border-radius:50%;background:var(--tng-line)}
+  .member-card .score-mini{text-align:right;flex-shrink:0;}
+  .member-card .score-mini .num{font-family:'Sora',sans-serif;font-size:18px;font-weight:700}
+  .member-card .score-mini .num.high{color:var(--tng-success)}
+  .member-card .score-mini .num.mid{color:var(--tng-warn)}
+  .member-card .score-mini .num.low{color:var(--tng-danger)}
+  .member-card .score-mini .lbl{font-size:9px;color:var(--tng-text-muted);text-transform:uppercase;letter-spacing:1px}
+  .member-manage-btn{
+    font-size:11px;font-weight:700;
+    background:rgba(26,79,190,.1);color:var(--tng-blue);
+    border:none;padding:6px 10px;border-radius:8px;
+    cursor:pointer;white-space:nowrap;
+  }
+
+  /* ========= ADD TRUST: STEP 1 — SELECT ========= */
+  .search-box{
+    margin:14px 16px 8px;
+    background:#fff;
+    border-radius:14px;
+    padding:10px 14px;
+    display:flex; align-items:center; gap:10px;
+    box-shadow:var(--shadow-card);
+  }
+  .search-box input{
+    flex:1; border:none; outline:none;
+    font-family:inherit; font-size:14px;
+    color:var(--tng-text);
+    background:transparent;
+  }
+  .search-box svg{width:16px;height:16px;color:var(--tng-text-muted)}
+  .picker-section-label{
+    margin:14px 20px 8px;
+    font-size:11px; font-weight:700;
+    color:var(--tng-text-muted);
+    text-transform:uppercase; letter-spacing:1.5px;
+  }
+  .contact-list{margin:0 16px 14px}
+  .contact-row{
+    background:#fff;
+    padding:12px 14px;
+    display:flex; align-items:center; gap:12px;
+    border-bottom:1px solid var(--tng-line);
+    cursor:pointer;
+  }
+  .contact-list .contact-row:first-child{border-radius:14px 14px 0 0}
+  .contact-list .contact-row:last-child{border-radius:0 0 14px 14px;border-bottom:none}
+  .contact-list .contact-row:only-child{border-radius:14px}
+  .contact-row .av{
+    width:40px;height:40px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Sora',sans-serif;font-weight:700;color:#fff;
+    flex-shrink:0;
+  }
+  .contact-row .body{flex:1;min-width:0}
+  .contact-row .name{font-size:14px;font-weight:600}
+  .contact-row .meta{font-size:11px;color:var(--tng-text-muted);margin-top:2px}
+  .contact-row .check{
+    width:22px;height:22px;border-radius:50%;
+    border:2px solid var(--tng-line);
+    flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .contact-row.selected{background:rgba(26,79,190,.04)}
+  .contact-row.selected .check{background:var(--tng-blue);border-color:var(--tng-blue);}
+  .contact-row.selected .check::after{
+    content:'';
+    width:10px;height:6px;
+    border:2px solid #fff;
+    border-top:none;border-right:none;
+    transform:rotate(-45deg) translate(1px,-1px);
+  }
+  .contact-row.in-network{opacity:.5;pointer-events:none}
+  .contact-row.in-network .check{border:none;background:var(--tng-success);}
+  .contact-row.in-network .check::after{content:'✓';color:#fff;font-size:12px;font-weight:700;}
+  .stacked-av{
+    width:24px;height:24px;border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-family:'Sora',sans-serif;font-weight:700;color:#fff;font-size:10px;
+    border:2px solid #fff;
+    margin-right:-8px;
+    flex-shrink:0;
+  }
+  @keyframes nodePulse{
+    0%{transform:scale(1);opacity:.5}
+    50%{transform:scale(1.3);opacity:0}
+    100%{transform:scale(1);opacity:0}
+  }
+  @keyframes pulse{
+    0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(245,158,11,.5)}
+    50%{transform:scale(1.1);box-shadow:0 0 0 6px rgba(245,158,11,0)}
+  }
+  .tap-hint{
+    position:absolute; top:10px; right:10px;
+    background:rgba(26,79,190,.1);
+    color:var(--tng-blue);
+    font-size:10px; font-weight:600;
+    padding:4px 8px; border-radius:8px;
+    display:flex; align-items:center; gap:4px;
+    pointer-events:none;
+  }
+  .tap-hint svg{width:11px;height:11px}
+  .picker-cta-bar{
+    position:sticky;
+    bottom:74px;  /* sit above the bottom nav */
+    background:var(--tng-bg);
+    padding:14px 16px 14px;
+    margin-top:auto;
+    z-index:5;
+    box-shadow:0 -8px 16px -8px rgba(15,30,80,0.06);
+  }
+  .picker-cta-bar button{
+    width:100%; padding:15px;
+    background:var(--tng-blue); color:#fff;
+    border:none; border-radius:14px;
+    font-family:'Sora',sans-serif; font-weight:700; font-size:15px;
+    cursor:pointer;
+    box-shadow:0 8px 20px rgba(26,79,190,.3);
+  }
+  .picker-cta-bar button:disabled{opacity:.4;box-shadow:none;cursor:not-allowed}
+  .selected-summary{
+    background:#fff;
+    border-radius:12px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    box-shadow:var(--shadow-card);
+    font-size:12px;
+    display:none;
+    align-items:center;
+    gap:8px;
+  }
+  .selected-summary.visible{display:flex}
+  .selected-summary .clear-link{
+    color:var(--tng-blue);
+    font-weight:600;
+    cursor:pointer;
+    padding:6px 8px;
+    margin:-6px -2px -6px 0;
+  }
+  /* Make the add-trust page a proper flex column so sticky bottom bar works and content scrolls cleanly */
+  #page-add-trust{
+    display:flex;
+    flex-direction:column;
+    padding-bottom:74px; /* reserve space below the sticky bar so last item isn't hidden by bottom nav */
+  }
+
+  /* ========= MANAGE GUARANTEES ========= */
+  .manage-card{
+    background:#fff;border-radius:14px;padding:14px;
+    box-shadow:var(--shadow-card);
+    margin:0 16px 10px;
+  }
+  /* Manage Connections page */
+  .connections-overview{
+    margin:14px 16px 0;
+    background:#fff;
+    border-radius:16px;
+    padding:14px;
+    box-shadow:var(--shadow-card);
+    display:flex; align-items:center;
+  }
+  .conn-stat{
+    flex:1; text-align:center;
+    position:relative;
+  }
+  .conn-stat:not(:last-child)::after{
+    content:'';position:absolute;
+    right:0; top:20%; bottom:20%;
+    width:1px; background:var(--tng-line);
+  }
+  .conn-stat-num{
+    font-family:'Sora',sans-serif;
+    font-size:24px; font-weight:800;
+    color:var(--tng-text);
+    line-height:1;
+  }
+  .conn-stat-lbl{
+    font-size:10px; color:var(--tng-text-muted);
+    font-weight:600; text-transform:uppercase;
+    letter-spacing:.5px; margin-top:4px;
+  }
+  .conn-section-header{
+    margin:18px 20px 10px;
+  }
+  .conn-section-title{
+    display:flex; align-items:center; gap:6px;
+    font-family:'Sora',sans-serif;
+    font-size:13px; font-weight:700;
+    color:var(--tng-text);
+  }
+  .conn-section-title svg{color:var(--tng-blue)}
+  .conn-section-sub{
+    font-size:11px; color:var(--tng-text-muted);
+    margin-top:2px; margin-left:20px;
+  }
+  .check-score{
+    font-family:'Sora',sans-serif;
+    font-size:14px; font-weight:800;
+    color:var(--tng-success);
+    flex-shrink:0;
+    min-width:30px; text-align:right;
+  }
+  .contact-row.in-network{opacity:1; pointer-events:auto; cursor:pointer}
+  .contact-row.in-network .check-score::after{
+    content:' ›'; color:var(--tng-text-muted);
+    font-weight:600;
+  }
+  .manage-card-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .manage-card-top .av{
+    width:44px;height:44px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Sora',sans-serif;font-weight:700;color:#fff;flex-shrink:0;
+  }
+  .manage-card-top .info{flex:1}
+  .manage-card-top .info .name{font-size:14px;font-weight:700}
+  .manage-card-top .info .phone{font-size:11px;color:var(--tng-text-muted);margin-top:2px}
+  .manage-field{margin-bottom:10px}
+  .manage-field label{font-size:11px;font-weight:700;color:var(--tng-text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+  .manage-field input,.manage-field select,.manage-field textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1.5px solid var(--tng-line);
+    border-radius:10px;
+    font-family:inherit;font-size:13px;
+    color:var(--tng-text);
+    outline:none;
+    background:#fff;
+    resize:none;
+  }
+  .manage-field input:focus,.manage-field select:focus,.manage-field textarea:focus{border-color:var(--tng-blue)}
+  .manage-actions{display:flex;gap:8px;margin-top:12px}
+  .manage-actions .save-btn{
+    flex:1;padding:11px;
+    background:var(--tng-blue);color:#fff;
+    border:none;border-radius:10px;
+    font-family:'Sora',sans-serif;font-weight:700;font-size:13px;
+    cursor:pointer;
+  }
+  .manage-actions .remove-btn{
+    padding:11px 16px;
+    background:rgba(224,53,75,.1);color:var(--tng-danger);
+    border:1.5px solid rgba(224,53,75,.2);border-radius:10px;
+    font-family:'Sora',sans-serif;font-weight:700;font-size:13px;
+    cursor:pointer;
+    display:flex;align-items:center;gap:6px;
+  }
+  .manage-actions .remove-btn svg{width:14px;height:14px}
+  .manage-field-hint{
+    font-size:10px; color:var(--tng-text-muted);
+    margin-top:4px;
+  }
+
+  /* ====== Manage Guarantee — section style ====== */
+  .mg-section-label{
+    margin:18px 20px 8px;
+    font-family:'Sora',sans-serif;
+    font-size:11px; font-weight:700;
+    color:var(--tng-text-muted);
+    text-transform:uppercase; letter-spacing:1.5px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .mg-section-label svg{color:var(--tng-blue)}
+  .mg-section-meta{
+    margin-left:auto;
+    font-size:10px; font-weight:500;
+    color:var(--tng-text-muted);
+    text-transform:none; letter-spacing:0;
+  }
+  .mg-card{
+    background:#fff;
+    border-radius:16px;
+    padding:16px;
+    box-shadow:var(--shadow-card);
+    margin:0 16px 6px;
+  }
+
+  /* User Info section */
+  .mg-userinfo-top{
+    display:flex; gap:14px; align-items:center;
+    padding-bottom:14px;
+    margin-bottom:14px;
+    border-bottom:1px solid var(--tng-line);
+  }
+  .av-large{
+    width:60px; height:60px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Sora',sans-serif; font-weight:700;
+    color:#fff; font-size:20px;
+    flex-shrink:0;
+  }
+  .mg-userinfo-head{flex:1; min-width:0}
+  .mg-userinfo-name{
+    font-family:'Sora',sans-serif;
+    font-size:18px; font-weight:700;
+    margin-bottom:6px;
+  }
+  .mg-userinfo-tags{
+    display:flex; gap:6px; flex-wrap:wrap;
+  }
+  .verified-pill{
+    display:inline-flex; align-items:center; gap:3px;
+    background:rgba(31,179,107,.12);
+    color:var(--tng-success);
+    font-size:9px; font-weight:700;
+    padding:2px 6px; border-radius:6px;
+    text-transform:uppercase; letter-spacing:.5px;
+  }
+  .mg-info-grid{
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .mg-info-row{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:13px;
+  }
+  .mg-info-lbl{
+    color:var(--tng-text-muted);
+    font-weight:500;
+  }
+  .mg-info-val{
+    font-weight:600;
+    color:var(--tng-text);
+    text-align:right;
+    max-width:60%;
+    word-break:break-word;
+  }
+
+  /* Trust Score section */
+  .mg-score-card{
+    background:linear-gradient(135deg, rgba(26,79,190,.04), rgba(91,63,217,.04));
+  }
+  .mg-score-hero{
+    display:flex; gap:16px; align-items:center;
+    padding-bottom:14px;
+    margin-bottom:14px;
+    border-bottom:1px solid var(--tng-line);
+  }
+  .mg-score-ring-wrap{
+    width:90px; height:90px;
+    flex-shrink:0;
+    position:relative;
+  }
+  .mg-score-ring-wrap svg{
+    width:100%; height:100%;
+    transform:rotate(-90deg);
+  }
+  .mg-score-ring-num{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    font-family:'Sora',sans-serif;
+  }
+  .mg-score-ring-num b{
+    font-size:24px; font-weight:800;
+    color:var(--tng-text); line-height:1;
+  }
+  .mg-score-ring-num span{
+    font-size:9px; color:var(--tng-text-muted);
+    margin-top:2px;
+  }
+  .mg-score-meta{flex:1; min-width:0}
+  .mg-score-tier{
+    display:inline-block;
+    background:var(--tng-success);
+    color:#fff;
+    font-family:'Sora',sans-serif;
+    font-size:11px; font-weight:700;
+    padding:4px 10px;
+    border-radius:10px;
+    letter-spacing:.5px;
+    margin-bottom:8px;
+  }
+  .mg-score-delta{
+    display:flex; align-items:center; gap:4px;
+    font-size:12px;
+    color:var(--tng-success);
+    font-weight:600;
+    margin-bottom:4px;
+  }
+  .mg-score-delta b{font-family:'Sora',sans-serif;font-weight:700}
+  .mg-score-update{
+    font-size:10px;
+    color:var(--tng-text-muted);
+  }
+  .mg-score-breakdown{
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .mg-score-row{
+    display:flex; align-items:center; gap:10px;
+    font-size:12px;
+  }
+  .mg-score-row-lbl{
+    flex:0 0 100px;
+    color:var(--tng-text-muted);
+    font-weight:500;
+  }
+  .mg-score-row-bar{
+    flex:1;
+    height:6px;
+    background:var(--tng-line);
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .mg-score-row-bar > div{
+    height:100%;
+    background:linear-gradient(90deg, var(--tng-blue), var(--tng-blue-soft));
+    border-radius:3px;
+  }
+  .mg-score-row-val{
+    flex:0 0 50px;
+    text-align:right;
+    font-family:'Sora',sans-serif;
+    font-weight:700;
+    color:var(--tng-text);
+  }
+
+  /* Loan History rows */
+  .mg-loan-row{
+    background:var(--tng-bg);
+    border-radius:12px;
+    padding:12px;
+    margin-bottom:8px;
+  }
+  .mg-loan-row:last-of-type{margin-bottom:0}
+
+  /* ========= LOAN REQUESTS (Guarantor) ========= */
+  .loan-req-card{
+    background:#fff;border-radius:14px;padding:14px;
+    box-shadow:var(--shadow-card);
+    margin:0 16px 10px;
+  }
+  .loan-req-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .loan-req-top .av{
+    width:38px;height:38px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Sora',sans-serif;font-weight:700;color:#fff;font-size:12px;flex-shrink:0;
+  }
+  .loan-req-top .info{flex:1}
+  .loan-req-top .info .who{font-size:13px;font-weight:700}
+  .loan-req-top .info .rel{font-size:11px;color:var(--tng-text-muted)}
+  .loan-req-amount{
+    font-family:'Sora',sans-serif;font-size:26px;font-weight:800;
+    color:var(--tng-blue); margin-bottom:4px;
+  }
+  .loan-req-amount .rm{font-size:16px;font-weight:600;opacity:.7;margin-right:2px}
+  .loan-req-meta{font-size:11px;color:var(--tng-text-muted);margin-bottom:12px;display:flex;gap:10px}
+  .loan-req-meta span{display:flex;align-items:center;gap:4px}
+  .loan-req-actions{display:flex;gap:8px}
+  .loan-req-actions button{
+    flex:1;padding:11px;
+    border-radius:10px;
+    font-family:'Sora',sans-serif;font-weight:700;font-size:13px;
+    cursor:pointer;border:none;
+  }
+  .loan-req-actions .approve{background:var(--tng-success);color:#fff;box-shadow:0 4px 12px rgba(31,179,107,.3)}
+  .loan-req-actions .decline{background:rgba(224,53,75,.1);color:var(--tng-danger);border:1.5px solid rgba(224,53,75,.2)}
+  .approved-badge{
+    background:rgba(31,179,107,.1);color:var(--tng-success);
+    font-size:11px;font-weight:700;
+    padding:6px 12px;border-radius:8px;
+    text-align:center;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+
+  /* ========= LOANS MANAGEMENT (Guarantor / Guarantee) ========= */
+  .loans-summary{
+    margin:14px 16px;
+    background:#fff;
+    border-radius:18px;
+    padding:18px;
+    box-shadow:var(--shadow-card);
+    display:flex; gap:14px;
+  }
+  .loans-summary > div{flex:1}
+  .loans-summary .lbl{font-size:11px;color:var(--tng-text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  .loans-summary .val{font-family:'Sora',sans-serif;font-size:20px;font-weight:800;margin-top:2px}
+  .loans-summary .val.danger{color:var(--tng-danger)}
+  .loans-summary .val.success{color:var(--tng-success)}
+  .loans-summary .divider{width:1px; flex:0 0 1px;background:var(--tng-line);}
+  .loan-card{
+    margin:0 16px 12px;
+    background:#fff;
+    border-radius:16px;
+    padding:14px;
+    box-shadow:var(--shadow-card);
+    cursor:pointer;
+  }
+  .loan-card-top{display:flex; justify-content:space-between; align-items:flex-start;margin-bottom:12px;}
+  .loan-card-top .who{display:flex; align-items:center; gap:10px;}
+  .loan-card-top .av{
+    width:36px;height:36px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Sora',sans-serif;font-weight:700;color:#fff; font-size:13px;
+  }
+  .loan-card-top .who-info{display:flex;flex-direction:column}
+  .loan-card-top .who-info .name{font-size:13px;font-weight:600}
+  .loan-card-top .who-info .rel{font-size:10px;color:var(--tng-text-muted)}
+  .status-badge{
+    font-size:10px;font-weight:700;
+    padding:4px 8px;border-radius:8px;
+    text-transform:uppercase; letter-spacing:.5px;
+  }
+  .status-badge.ontime{background:rgba(31,179,107,.12);color:var(--tng-success)}
+  .status-badge.upcoming{background:rgba(245,158,11,.12);color:var(--tng-warn)}
+  .status-badge.overdue{background:rgba(224,53,75,.12);color:var(--tng-danger)}
+  .status-badge.completed{background:rgba(107,118,147,.12);color:var(--tng-text-muted)}
+  .status-badge.pending{background:rgba(245,158,11,.12);color:var(--tng-warn)}
+  .status-badge.approved{background:rgba(31,179,107,.12);color:var(--tng-success)}
+  .loan-amount-row{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .loan-amount-row .amt{font-family:'Sora',sans-serif;font-size:22px; font-weight:800;}
+  .loan-amount-row .amt .rm{font-size:14px;font-weight:600;opacity:.7;margin-right:2px}
+  .loan-amount-row .term{font-size:11px;color:var(--tng-text-muted);text-align:right;}
+  .loan-amount-row .term b{font-family:'Sora',sans-serif;font-size:13px;color:var(--tng-text);display:block}
+  .loan-progress{height:8px; background:var(--tng-line);border-radius:4px; overflow:hidden;margin-bottom:8px;}
+  .loan-progress > div{height:100%;background:linear-gradient(90deg, var(--tng-success), #16965A);border-radius:4px;}
+  .loan-progress-meta{display:flex; justify-content:space-between;font-size:10px; color:var(--tng-text-muted);margin-bottom:12px;}
+  .loan-progress-meta b{color:var(--tng-text);font-family:'Sora',sans-serif}
+  .loan-due{
+    background:var(--tng-bg);
+    border-radius:10px;
+    padding:10px 12px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .loan-due.overdue{background:rgba(224,53,75,.08)}
+  .loan-due.upcoming{background:rgba(245,158,11,.08)}
+  .loan-due-ic{
+    width:32px;height:32px;border-radius:50%;
+    background:rgba(26,79,190,.1); color:var(--tng-blue);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .loan-due.overdue .loan-due-ic{background:rgba(224,53,75,.15);color:var(--tng-danger)}
+  .loan-due.upcoming .loan-due-ic{background:rgba(245,158,11,.15);color:var(--tng-warn)}
+  .loan-due-ic svg{width:16px;height:16px}
+  .loan-due-info{flex:1; min-width:0}
+  .loan-due-info .lbl{font-size:10px;color:var(--tng-text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  .loan-due-info .val{font-family:'Sora',sans-serif;font-size:13px;font-weight:700;margin-top:1px}
+  .loan-due-pay{
+    background:var(--tng-blue); color:#fff;
+    border:none;
+    padding:8px 14px; border-radius:10px;
+    font-family:'Sora',sans-serif;font-weight:700; font-size:12px;
+    cursor:pointer;
+  }
+  .loan-due-pay.muted{
+    background:transparent; color:var(--tng-text-muted);
+    border:1.5px solid var(--tng-line);
+  }
+  .loan-due-pay.danger-btn{
+    background:var(--tng-danger);color:#fff;
+    border:none;
+  }
+  .filter-row{margin:0 16px 12px;display:flex; gap:6px;}
+  .filter-row .filter-tab{flex:1; text-align:center}
+  .section-label{
+    margin:14px 16px 8px;
+    font-family:'Sora',sans-serif;font-size:13px;font-weight:700;
+    color:var(--tng-text);
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .section-label .badge{
+    background:var(--tng-danger);color:#fff;
+    font-size:10px;font-weight:700;
+    padding:2px 7px;border-radius:10px;
+  }
+
+  /* ========= CONSENT MODAL ========= */
+  .modal-backdrop{
+    position:absolute; inset:0;
+    background:rgba(11,27,63,.6);
+    backdrop-filter:blur(4px);
+    display:flex; align-items:flex-end;
+    z-index:100;
+    opacity:0; pointer-events:none;
+    transition:opacity .25s;
+  }
+  .modal-backdrop.show{opacity:1; pointer-events:auto}
+  .modal{
+    background:#fff;
+    width:100%; padding:22px;
+    border-radius:24px 24px 0 0;
+    transform:translateY(100%);
+    transition:transform .35s cubic-bezier(.4,0,.2,1);
+    max-height:85%;
+    overflow-y:auto;
+  }
+  .modal-backdrop.show .modal{transform:translateY(0)}
+  .modal::-webkit-scrollbar{display:none}
+  .modal-grip{
+    width:40px;height:4px;border-radius:2px;
+    background:var(--tng-line);
+    margin:0 auto 16px;
+  }
+  .consent-icon{
+    width:64px;height:64px;border-radius:50%;
+    background:linear-gradient(135deg, rgba(26,79,190,.1), rgba(91,63,217,.1));
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 14px;
+    color:var(--tng-blue);
+  }
+  .consent-icon svg{width:32px;height:32px}
+  .modal h2{
+    font-family:'Sora',sans-serif;
+    font-size:20px; font-weight:700;
+    text-align:center; margin-bottom:6px;
+  }
+  .modal .lead{
+    text-align:center; color:var(--tng-text-muted);
+    font-size:13px; margin-bottom:18px;
+    line-height:1.5;
+  }
+  .consent-pair{
+    background:var(--tng-bg);
+    border-radius:14px;
+    padding:14px;
+    display:flex; align-items:center; gap:14px;
+    margin-bottom:14px;
+  }
+  .consent-pair .you, .consent-pair .them{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .consent-pair .av{
+    width:48px;height:48px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Sora',sans-serif;font-weight:700;color:#fff; font-size:16px;
+  }
+  .consent-pair .who{font-size:11px;font-weight:600;color:var(--tng-text-muted);text-transform:uppercase;letter-spacing:.5px}
+  .consent-pair .who-name{font-size:13px;font-weight:700}
+  .consent-link{width:36px; height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--tng-blue);}
+  .consent-link svg{width:24px;height:24px}
+  .consent-rules{
+    background:rgba(255,213,0,.08);
+    border:1px solid rgba(255,213,0,.3);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:14px;
+  }
+  .consent-rules h4{
+    font-family:'Sora',sans-serif;
+    font-size:12px;font-weight:700;
+    color:#8B6500;
+    margin-bottom:8px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .consent-rules ul{list-style:none;padding:0;margin:0}
+  .consent-rules li{
+    font-size:11px; color:var(--tng-text);
+    padding:4px 0 4px 18px;
+    position:relative;
+    line-height:1.5;
+  }
+  .consent-rules li::before{
+    content:'';
+    position:absolute;left:4px;top:9px;
+    width:5px;height:5px;border-radius:50%;
+    background:var(--tng-warn);
+  }
+  .relationship-picker{margin-bottom:14px}
+  .relationship-picker .lbl{font-size:11px;font-weight:700;color:var(--tng-text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+  .rel-pills{display:flex;gap:6px;flex-wrap:wrap}
+  .rel-pill{
+    padding:8px 12px;border-radius:10px;
+    border:1.5px solid var(--tng-line);
+    background:#fff;
+    font-size:12px;font-weight:600;
+    cursor:pointer;
+  }
+  .rel-pill.active{background:var(--tng-blue);border-color:var(--tng-blue);color:#fff}
+  .modal-actions{display:flex;gap:10px}
+  .modal-actions button{
+    flex:1; padding:14px;
+    border-radius:14px;
+    font-family:'Sora',sans-serif;font-weight:700; font-size:14px;
+    cursor:pointer; border:none;
+  }
+  .modal-actions .cancel{background:var(--tng-bg);color:var(--tng-text);border:1.5px solid var(--tng-line);}
+  .modal-actions .confirm{background:var(--tng-blue); color:#fff;box-shadow:0 8px 20px rgba(26,79,190,.3);}
+  .modal-actions .success-btn{background:var(--tng-success);color:#fff;box-shadow:0 8px 20px rgba(31,179,107,.3);}
+
+  /* Success icon */
+  .success-icon{
+    width:80px;height:80px;border-radius:50%;
+    background:linear-gradient(135deg, var(--tng-success), #16965A);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 16px;
+    box-shadow:0 12px 30px rgba(31,179,107,.4);
+    animation:successPop .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes successPop{0%{transform:scale(0)}100%{transform:scale(1)}}
+  .success-icon svg{width:40px;height:40px;color:#fff}
+  .warn-icon{
+    width:80px;height:80px;border-radius:50%;
+    background:linear-gradient(135deg, var(--tng-warn), #D97706);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 16px;
+    box-shadow:0 12px 30px rgba(245,158,11,.4);
+    animation:successPop .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  .warn-icon svg{width:40px;height:40px;color:#fff}
+
+  /* ========= LOAN APPLICATION ========= */
+  .loan-hero{
+    margin:14px 16px;
+    background:linear-gradient(135deg, #1A4FBE, #5B3FD9);
+    border-radius:18px;
+    padding:18px;
+    color:#fff;
+    position:relative; overflow:hidden;
+    box-shadow:var(--shadow-card);
+  }
+  .loan-hero::before{
+    content:''; position:absolute; right:-30px; top:-30px;
+    width:160px;height:160px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,213,0,.25),transparent 70%);
+  }
+  .loan-hero .eyebrow{font-size:11px;letter-spacing:1.5px;opacity:.7;text-transform:uppercase;font-weight:600;position:relative;}
+  .loan-hero .max-amt{font-family:'Sora',sans-serif;font-size:30px; font-weight:800;margin-top:4px; position:relative;line-height:1.1;}
+  .loan-hero .max-amt .rm{font-size:18px;opacity:.8;margin-right:4px}
+  .loan-hero .helper{font-size:12px; opacity:.85; margin-top:6px;position:relative;}
+  .loan-scores{display:flex; gap:10px;margin-top:14px;position:relative;}
+  .loan-score-mini{
+    flex:1;
+    background:rgba(255,255,255,.12);
+    backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.2);
+    border-radius:12px;
+    padding:10px 12px;
+  }
+  .loan-score-mini .lbl{font-size:10px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .loan-score-mini .val{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;margin-top:2px;line-height:1}
+  .loan-score-mini .val.yellow{color:var(--tng-yellow)}
+  .loan-score-mini .delta{font-size:10px;opacity:.85;margin-top:4px}
+  .loan-score-mini .delta b{color:var(--tng-yellow)}
+  .sim-card{margin:14px 16px;background:#fff;border-radius:18px;padding:18px;box-shadow:var(--shadow-card);}
+  .sim-card h3{font-family:'Sora',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+  .sim-card h3 .max-tag{font-size:10px;color:var(--tng-text-muted);font-weight:500}
+  .sim-card h3 .max-tag b{color:var(--tng-blue);font-weight:700}
+  .amount-display{text-align:center; margin:8px 0 18px;}
+  .amount-display .rm{font-size:14px;color:var(--tng-text-muted);font-weight:600}
+  .amount-display .num{font-family:'Sora',sans-serif;font-size:42px;font-weight:800;color:var(--tng-blue);margin:0 4px;}
+  .slider-wrap{margin:14px 0}
+  .slider-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--tng-text-muted);margin-bottom:8px}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:6px;
+    background:linear-gradient(90deg, var(--tng-blue) 0%, var(--tng-blue) var(--p,40%), var(--tng-line) var(--p,40%), var(--tng-line) 100%);
+    border-radius:3px;outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:24px;height:24px;border-radius:50%;
+    background:#fff;
+    border:4px solid var(--tng-blue);
+    cursor:pointer;
+    box-shadow:0 2px 8px rgba(26,79,190,.3);
+  }
+  .term-row{display:flex;gap:8px;margin-top:6px}
+  .term-pill{
+    flex:1; padding:8px;text-align:center;
+    border:1.5px solid var(--tng-line);
+    border-radius:10px;
+    font-size:12px;font-weight:600;
+    cursor:pointer; transition:all .15s;
+  }
+  .term-pill.active{background:var(--tng-blue);border-color:var(--tng-blue); color:#fff;}
+  .summary-box{margin:14px 16px;background:#fff;border-radius:18px;padding:18px;box-shadow:var(--shadow-card);}
+  .summary-box h3{font-size:13px;font-weight:700;font-family:'Sora',sans-serif;margin-bottom:10px}
+  .summary-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px;border-bottom:1px dashed var(--tng-line);}
+  .summary-row:last-child{border:none}
+  .summary-row .lhs{color:var(--tng-text-muted)}
+  .summary-row .rhs{font-weight:700;font-family:'Sora',sans-serif}
+  .summary-row.total .lhs{color:var(--tng-text);font-weight:600}
+  .summary-row.total .rhs{font-size:18px;color:var(--tng-blue)}
+  .apply-btn{
+    margin:14px 16px 18px;
+    width:calc(100% - 32px);
+    padding:16px;
+    background:var(--tng-yellow);
+    color:var(--tng-text);
+    border:none; border-radius:16px;
+    font-family:'Sora',sans-serif;
+    font-weight:700;font-size:15px;
+    cursor:pointer;
+    box-shadow:0 8px 20px rgba(255,213,0,.3);
+  }
+  .apply-btn:active{transform:scale(.98)}
+
+  /* Loan status banner */
+  .loan-status-banner{
+    margin:14px 16px;
+    border-radius:14px;
+    padding:14px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .loan-status-banner.pending-banner{background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.3)}
+  .loan-status-banner.approved-banner{background:rgba(31,179,107,.1);border:1.5px solid rgba(31,179,107,.3)}
+  .loan-status-banner .ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .loan-status-banner.pending-banner .ic{background:rgba(245,158,11,.2);color:var(--tng-warn)}
+  .loan-status-banner.approved-banner .ic{background:rgba(31,179,107,.2);color:var(--tng-success)}
+  .loan-status-banner .ic svg{width:18px;height:18px}
+  .loan-status-banner .txt{flex:1}
+  .loan-status-banner .txt .ttl{font-weight:700;font-size:13px}
+  .loan-status-banner .txt .sub{font-size:11px;color:var(--tng-text-muted);margin-top:2px}
+
+  /* Pay confirmation */
+  .pay-breakdown{background:var(--tng-bg);border-radius:12px;padding:14px;margin-bottom:14px;}
+  .pay-breakdown .row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px dashed var(--tng-line)}
+  .pay-breakdown .row:last-child{border:none;font-weight:700;padding-top:10px;font-family:'Sora',sans-serif;font-size:15px}
+  .pay-breakdown .row .lbl{color:var(--tng-text-muted)}
+
+  /* Toast */
+  .toast{
+    position:absolute;
+    top:60px;left:50%;transform:translate(-50%, -100px);
+    background:var(--tng-text);
+    color:#fff;
+    padding:10px 18px;border-radius:24px;
+    font-size:12px;font-weight:600;
+    box-shadow:var(--shadow-pop);
+    z-index:150;
+    transition:transform .3s;
+    white-space:nowrap;
+  }
+  .toast.show{transform:translate(-50%, 0)}
+  .hidden{display:none !important}
+  .phone-caption{
+    color:#fff; text-align:center;
+    margin-top:14px;
+    font-family:'Sora',sans-serif;font-weight:600;
+    font-size:13px; opacity:.9;
+  }
+  .phone-wrap{display:flex;flex-direction:column;align-items:center}
+  /* Pending indicator */
+  .pending-pill{
+    display:inline-flex;align-items:center;gap:4px;
+    background:rgba(245,158,11,.12);
+    color:var(--tng-warn);
+    font-size:10px;font-weight:700;
+    padding:3px 8px;border-radius:8px;
+    border:1px solid rgba(245,158,11,.3);
+  }
+  .pending-dot{width:6px;height:6px;border-radius:50%;background:var(--tng-warn);animation:blink 1.2s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+
+<div class="role-switcher">
+  <button id="role-guarantor" class="active" onclick="setRole('guarantor')">Guarantor View</button>
+  <button id="role-guarantee" onclick="setRole('guarantee')">Guarantee View</button>
+</div>
+
+<div class="phone-wrap">
+<div class="phone">
+  <div class="notch"></div>
+  <div class="role-tag" id="roleTag"><span class="dot"></span> <span id="roleText">GUARANTOR · Aiman</span></div>
+  <div class="statusbar">
+    <span>20:46</span>
+    <div class="right"><span>5G</span><span>•••</span><span>81</span></div>
+  </div>
+  <div class="toast" id="toast">Hello</div>
+
+  <div class="pages">
+
+    <!-- ============ HOME ============ -->
+    <div class="page active" id="page-home">
+      <div class="home-header">
+        <div class="top-row">
+          <div class="country-pill"><span>🇲🇾</span> MY <span>▾</span></div>
+          <div class="search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+            <span>Search</span>
+          </div>
+          <div class="avatar" id="homeAvatar">A</div>
+        </div>
+        <div class="balance-block">
+          <div class="balance-row">
+            <div class="shield">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <span class="balance-amt"><span class="rm">RM</span><span class="stars">****</span></span>
+          </div>
+          <div class="view-asset">View asset details</div>
+          <div class="quick-actions">
+            <button>+ Add money</button>
+            <button class="ghost">Transactions</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feat" onclick="navigateTo('trustnetwork')">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/></svg>
+          <span class="feat-label">Trust Link</span>
+        </div>
+        <div class="feat" onclick="navigateTo('loan')">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>
+          <span class="feat-label">Apply Loan</span>
+        </div>
+        <div class="feat" onclick="navigateTo('borrowed')">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+          <span class="feat-label">Loans</span>
+        </div>
+        <div class="feat">
+          <svg class="feat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m22 2-20 9 8 3 3 8z"/></svg>
+          <span class="feat-label">Transfer</span>
+        </div>
+      </div>
+
+      <div class="vt-banner" onclick="navigateTo('trustnetwork')">
+        <span class="vt-tag">TRUSTGRAPH · AI</span>
+        <div class="vt-title">Your <b>Trust Link</b> is active</div>
+        <div class="vt-sub">Tap to view your network and credit power.</div>
+        <div class="vt-stats">
+          <div class="vt-stat">Your Score<b class="yellow" id="homeScore">738</b></div>
+          <div class="vt-stat">Trust Link<b id="homeMemberCount">3 members</b></div>
+          <div class="vt-stat">Borrowing Power<b id="homePower">RM 12.5K</b></div>
+        </div>
+      </div>
+
+      <!-- Pending Loan Requests Notification (Guarantor only) -->
+      <div id="homePendingBanner" style="margin:12px 16px 0;display:none" onclick="navigateTo('loan-requests')">
+        <div style="background:linear-gradient(135deg,#FFD500,#FFA800);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 6px 18px rgba(255,168,0,.35);position:relative;overflow:hidden">
+          <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.2)"></div>
+          <div style="width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;color:var(--tng-text);position:relative">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span style="position:absolute;top:-2px;right:-2px;background:var(--tng-danger);color:#fff;font-size:9px;font-weight:800;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff" id="pendingCount">2</span>
+          </div>
+          <div style="flex:1;color:var(--tng-text);position:relative">
+            <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px">New Loan Requests</div>
+            <div style="font-size:11px;opacity:.8;margin-top:2px"><b id="pendingNames">Siti & Rajesh</b> need your approval</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--tng-text);position:relative"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+      </div>
+
+      <div class="tg-actions">
+        <div class="tg-action" onclick="navigateTo('add-trust')">
+          <div class="ic-wrap" style="background:rgba(91,63,217,.1);color:var(--tng-purple)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="9" r="4"/><path d="M16 11h6M19 8v6"/></svg>
+          </div>
+          <span class="lbl">Manage Connections</span>
+        </div>
+        <div class="tg-action" onclick="navigateTo('trustnetwork')">
+          <div class="ic-wrap" style="background:rgba(26,79,190,.1);color:var(--tng-blue)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/></svg>
+          </div>
+          <span class="lbl">Trust Network</span>
+        </div>
+        <div class="tg-action" onclick="navigateTo('loan')">
+          <div class="ic-wrap" style="background:rgba(31,179,107,.1);color:var(--tng-success)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>
+          </div>
+          <span class="lbl">Apply Loan</span>
+        </div>
+        <div class="tg-action" onclick="navigateTo('borrowed')">
+          <span class="badge-dot" id="loanBadge"></span>
+          <div class="ic-wrap" style="background:rgba(245,158,11,.12);color:var(--tng-warn)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+          </div>
+          <span class="lbl" id="loansActionLabel">Borrowed Loans</span>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <span class="lbl">My Credit Score</span>
+          <span class="val" id="homeScoreCard" style="color:var(--tng-success)">738 · Excellent</span>
+        </div>
+        <div class="info-card">
+          <span class="lbl">Trust Link Score</span>
+          <span class="val" id="homeTrustScore" style="color:var(--tng-blue)">812 · Strong</span>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+
+    <!-- ============ TRUST NETWORK ============ -->
+    <div class="page" id="page-trustnetwork">
+      <div class="sub-header" style="padding-bottom:18px">
+        <div class="sub-nav">
+          <div class="sub-back" onclick="navigateTo('home')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </div>
+          <div class="sub-title">Trust Link</div>
+          <div class="sub-action" onclick="showToast('Filter options')">⋮</div>
+        </div>
+      </div>
+
+      <div class="tg-summary">
+        <div class="tg-score-mini">
+          <svg viewBox="0 0 100 100">
+            <defs>
+              <linearGradient id="miniGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FFD500"/><stop offset="100%" stop-color="#1FB36B"/>
+              </linearGradient>
+            </defs>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--tng-line)" stroke-width="8"/>
+            <circle id="miniRing" cx="50" cy="50" r="42" fill="none" stroke="url(#miniGrad)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264"/>
+          </svg>
+          <div class="num"><b id="miniScoreNum">0</b><span>/ 850</span></div>
+        </div>
+        <div class="tg-summary-body">
+          <div class="ttl">Trust Link Score</div>
+          <div class="role" id="tgRoleLabel">Guarantor · Network Anchor</div>
+          <div class="meta" id="tgMeta"><b>3 active</b> · 2 guarantees · 1 guarantor</div>
+        </div>
+      </div>
+
+      <div class="filter-tabs">
+        <div class="filter-tab active" onclick="filterMembers(this,'all')">All</div>
+        <div class="filter-tab" onclick="filterMembers(this,'guarantor')">My Guarantors</div>
+        <div class="filter-tab" onclick="filterMembers(this,'guarantee')">I Vouch For</div>
+        <div class="filter-tab" onclick="filterMembers(this,'extended')">Extended (2-hop)</div>
+      </div>
+
+      <div class="graph-wrap">
+        <svg id="trustGraph" class="graph-svg" viewBox="0 0 340 280"></svg>
+        <div class="tap-hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11V6a3 3 0 0 1 6 0v8M9 11l-1.5-1.5a2 2 0 0 0-2.83 2.83l5.83 5.83a4 4 0 0 0 5.66 0l3.5-3.5a4 4 0 0 0 0-5.66L17 5"/></svg>
+          Tap node
+        </div>
+        <div class="graph-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#1A4FBE"></span> You</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#5B3FD9"></span> Guarantor</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#1FB36B"></span> Guarantee</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#94A3B8"></span> 2-hop</div>
+        </div>
+      </div>
+
+      <div class="members-block">
+        <div class="members-header">
+          <h3>Network Members</h3>
+          <button class="add-trust-btn" onclick="navigateTo('add-trust')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Trust Link
+          </button>
+        </div>
+
+        <div class="member-card" data-role="guarantor">
+          <div class="av" style="background:#1FB36B">FA</div>
+          <div class="body">
+            <div class="name">Farid Ahmad <span class="role-tag-mini guarantor">Guarantor</span></div>
+            <div class="meta">Family · 3 yrs <span class="sep"></span> Direct (1-hop)</div>
+          </div>
+          <div class="score-mini"><div class="num high">812</div><div class="lbl">trust</div></div>
+        </div>
+
+        <div class="member-card" data-role="guarantee" onclick="navigateTo('manage-guarantee'); setManageTarget('Siti Lim','SL','#1A4FBE','+60 13-887 9921','Niece',795)">
+          <div class="av" style="background:#1A4FBE">SL</div>
+          <div class="body">
+            <div class="name">Siti Lim <span class="role-tag-mini guarantee">Guarantee</span></div>
+            <div class="meta">Niece · 5 yrs <span class="sep"></span> Direct (1-hop)</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <div class="score-mini"><div class="num high">795</div><div class="lbl">trust</div></div>
+            <button class="member-manage-btn" onclick="event.stopPropagation();navigateTo('manage-guarantee');setManageTarget('Siti Lim','SL','#1A4FBE','+60 13-887 9921','Niece',795)">Manage</button>
+          </div>
+        </div>
+
+        <div class="member-card" data-role="guarantee" onclick="navigateTo('manage-guarantee'); setManageTarget('Rajesh Kumar','RK','#5B3FD9','+60 11-220 4456','Colleague',688)">
+          <div class="av" style="background:#5B3FD9">RK</div>
+          <div class="body">
+            <div class="name">Rajesh Kumar <span class="role-tag-mini guarantee">Guarantee</span></div>
+            <div class="meta">Colleague · 2 yrs <span class="sep"></span> Direct (1-hop)</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <div class="score-mini"><div class="num mid">688</div><div class="lbl">trust</div></div>
+            <button class="member-manage-btn" onclick="event.stopPropagation();navigateTo('manage-guarantee');setManageTarget('Rajesh Kumar','RK','#5B3FD9','+60 11-220 4456','Colleague',688)">Manage</button>
+          </div>
+        </div>
+
+        <div class="member-card" data-role="extended">
+          <div class="av" style="background:#94A3B8">MN</div>
+          <div class="body">
+            <div class="name">Maya Nair <span class="role-tag-mini">Extended</span></div>
+            <div class="meta">Via Farid · 4 yrs known <span class="sep"></span> Indirect (2-hop)</div>
+          </div>
+          <div class="score-mini"><div class="num high">742</div><div class="lbl">trust</div></div>
+        </div>
+      </div>
+      <div class="bottom-spacer" style="height:30px"></div>
+    </div>
+
+    <!-- ============ MANAGE GUARANTEE ============ -->
+    <div class="page" id="page-manage-guarantee">
+      <div class="sub-header">
+        <div class="sub-nav">
+          <div class="sub-back" onclick="navigateTo('trustnetwork')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </div>
+          <div class="sub-title">Guarantee Details</div>
+          <div class="sub-action" onclick="showToast('More options')">⋮</div>
+        </div>
+      </div>
+
+      <!-- ===== Section 1: User Information ===== -->
+      <div class="mg-section-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/></svg>
+        User Information
+      </div>
+      <div class="mg-card">
+        <div class="mg-userinfo-top">
+          <div class="av-large" id="mgAv" style="background:#1FB36B">SL</div>
+          <div class="mg-userinfo-head">
+            <div class="mg-userinfo-name" id="mgName">Siti Lim</div>
+            <div class="mg-userinfo-tags">
+              <span class="role-tag-mini guarantee">Guarantee</span>
+              <span class="verified-pill">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 5 5L20 7"/></svg>
+                eKYC Verified
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mg-info-grid">
+          <div class="mg-info-row">
+            <div class="mg-info-lbl">Phone</div>
+            <div class="mg-info-val" id="mgPhone">+60 13-887 9921</div>
+          </div>
+          <div class="mg-info-row">
+            <div class="mg-info-lbl">Email</div>
+            <div class="mg-info-val" id="mgEmail">siti.lim@gmail.com</div>
+          </div>
+          <div class="mg-info-row">
+            <div class="mg-info-lbl">IC Number</div>
+            <div class="mg-info-val" id="mgIC">9508**-**-****</div>
+          </div>
+          <div class="mg-info-row">
+            <div class="mg-info-lbl">Joined TNG</div>
+            <div class="mg-info-val" id="mgJoined">Mar 2021 · 5 years</div>
+          </div>
+          <div class="mg-info-row">
+            <div class="mg-info-lbl">Linked since</div>
+            <div class="mg-info-val" id="mgLinkedSince">Jan 2024 · 2 yrs in your network</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Section 2: Trust Score ===== -->
+      <div class="mg-section-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+        Trust Score
+      </div>
+      <div class="mg-card mg-score-card">
+        <div class="mg-score-hero">
+          <div class="mg-score-ring-wrap">
+            <svg viewBox="0 0 100 100">
+              <defs>
+                <linearGradient id="mgScoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#FFD500"/><stop offset="100%" stop-color="#1FB36B"/>
+                </linearGradient>
+              </defs>
+              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--tng-line)" stroke-width="7"/>
+              <circle id="mgScoreRing" cx="50" cy="50" r="42" fill="none" stroke="url(#mgScoreGrad)" stroke-width="7" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264"/>
+            </svg>
+            <div class="mg-score-ring-num"><b id="mgScore">795</b><span>/ 850</span></div>
+          </div>
+          <div class="mg-score-meta">
+            <div class="mg-score-tier" id="mgScoreTier">Excellent</div>
+            <div class="mg-score-delta">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 15 6-6 6 6"/></svg>
+              <span><b>+12</b> in last 30 days</span>
+            </div>
+            <div class="mg-score-update">Last updated 2h ago</div>
+          </div>
+        </div>
+
+        <div class="mg-score-breakdown">
+          <div class="mg-score-row">
+            <div class="mg-score-row-lbl">Behavioural</div>
+            <div class="mg-score-row-bar"><div style="width:88%"></div></div>
+            <div class="mg-score-row-val">+165</div>
+          </div>
+          <div class="mg-score-row">
+            <div class="mg-score-row-lbl">Repayment</div>
+            <div class="mg-score-row-bar"><div style="width:100%;background:linear-gradient(90deg,var(--tng-success),#16965A)"></div></div>
+            <div class="mg-score-row-val" style="color:var(--tng-success)">100%</div>
+          </div>
+          <div class="mg-score-row">
+            <div class="mg-score-row-lbl">Trust Confidence</div>
+            <div class="mg-score-row-bar"><div style="width:87%"></div></div>
+            <div class="mg-score-row-val">0.87</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Section 3: Relationship Settings ===== -->
+      <div class="mg-section-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>
+        Relationship Settings
+      </div>
+      <div class="mg-card">
+        <div class="manage-field">
+          <label>Relationship</label>
+          <select id="mgRelSelect">
+            <option value="Family">Family</option>
+            <option value="Friend">Friend</option>
+            <option value="Colleague">Colleague</option>
+            <option value="Employer">Employer</option>
+            <option value="Community">Community</option>
+          </select>
+        </div>
+        <div class="manage-field">
+          <label>Description / Notes</label>
+          <textarea id="mgDesc" rows="3" placeholder="Add a note about this relationship…">My niece. Helps run the family stall. Trustworthy and reliable.</textarea>
+        </div>
+        <div class="manage-field">
+          <label>Liability Cap (RM)</label>
+          <input type="number" id="mgCap" placeholder="e.g. 5000" value="5000"/>
+          <div class="manage-field-hint">Maximum amount you'll back as guarantor</div>
+        </div>
+        <div class="manage-actions">
+          <button class="save-btn" onclick="saveManageGuarantee()">Save Changes</button>
+          <button class="remove-btn" onclick="openRemoveModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <!-- ===== Section 4: Loan History ===== -->
+      <div class="mg-section-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+        Loan History
+        <span class="mg-section-meta" id="mgHistorySummary">Active: 1 · Completed: 1</span>
+      </div>
+      <div class="mg-card">
+        <!-- Active loan -->
+        <div class="mg-loan-row">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700">RM 1,250</div>
+            <span class="status-badge ontime">On time</span>
+          </div>
+          <div style="font-size:11px;color:var(--tng-text-muted);margin-bottom:8px">3-month plan · 1 of 3 paid · Started Mar 2026</div>
+          <div class="loan-progress" style="margin-bottom:6px"><div style="width:33%"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+            <span style="color:var(--tng-text-muted)">Next: 15 May · <b style="color:var(--tng-text)">RM 425</b></span>
+            <div style="display:flex;gap:6px">
+              <button onclick="event.stopPropagation();openGuarantorAction('Siti Lim',425,'15 May 2026')" style="background:transparent;border:1.5px solid var(--tng-line);color:var(--tng-text);padding:5px 10px;border-radius:8px;font-family:'Sora',sans-serif;font-weight:700;font-size:10px;cursor:pointer">Remind</button>
+              <button onclick="event.stopPropagation();openPayOnBehalf('Siti Lim',425,'15 May 2026')" style="background:var(--tng-blue);color:#fff;border:none;padding:5px 10px;border-radius:8px;font-family:'Sora',sans-serif;font-weight:700;font-size:10px;cursor:pointer">Pay now</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed loan -->
+        <div class="mg-loan-row" style="opacity:.85">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700">RM 600</div>
+            <span class="status-badge completed">Completed</span>
+          </div>
+          <div style="font-size:11px;color:var(--tng-text-muted);margin-bottom:8px">3-month plan · 3 of 3 paid · Closed Jan 2026</div>
+          <div class="loan-progress" style="margin-bottom:6px"><div style="width:100%"></div></div>
+          <div style="font-size:11px;color:var(--tng-success)">✓ Paid in full · Trust Link Score +12</div>
+        </div>
+
+        <div style="text-align:center;margin-top:8px">
+          <span onclick="showToast('Loading full history…')" style="color:var(--tng-blue);font-size:12px;font-weight:600;cursor:pointer">View full history ›</span>
+        </div>
+      </div>
+
+      <div class="bottom-spacer" style="height:30px"></div>
+    </div>
+
+    <!-- ============ ADD TRUST: CONTACT PICKER ============ -->
+    <div class="page" id="page-add-trust">
+      <div class="sub-header">
+        <div class="sub-nav">
+          <div class="sub-back" onclick="navigateTo('trustnetwork')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </div>
+          <div class="sub-title">Manage Connections</div>
+        </div>
+      </div>
+
+      <!-- Current network state -->
+      <div class="connections-overview">
+        <div class="conn-stat">
+          <div class="conn-stat-num" id="connTotalNum">3</div>
+          <div class="conn-stat-lbl">In Network</div>
+        </div>
+        <div class="conn-stat">
+          <div class="conn-stat-num" id="connPendingNum" style="color:var(--tng-warn)">0</div>
+          <div class="conn-stat-lbl">Pending</div>
+        </div>
+        <div class="conn-stat">
+          <div class="conn-stat-num" id="connSelectedNum" style="color:var(--tng-blue)">0</div>
+          <div class="conn-stat-lbl">Selected</div>
+        </div>
+      </div>
+
+      <!-- Section: add new connections -->
+      <div class="conn-section-header">
+        <div class="conn-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="9" r="4"/><path d="M16 11h6M19 8v6"/></svg>
+          Add New Connections
+        </div>
+        <div class="conn-section-sub">Select people to invite into your trust link</div>
+      </div>
+
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search by name or phone…" id="contactSearch" oninput="filterContacts(this.value)" />
+      </div>
+
+      <div class="picker-section-label">Suggested · From your TNG contacts</div>
+      <div class="contact-list" id="contactListA">
+        <div class="contact-row" data-name="ahmad zikry" onclick="toggleContactSelect(this)">
+          <div class="av" style="background:#5B3FD9">AZ</div>
+          <div class="body"><div class="name">Ahmad Zikry</div><div class="meta">+60 12-340 1234 · TNG verified</div></div>
+          <div class="check"></div>
+        </div>
+        <div class="contact-row" data-name="nurul iman" onclick="toggleContactSelect(this)">
+          <div class="av" style="background:#1A4FBE">NI</div>
+          <div class="body"><div class="name">Nurul Iman</div><div class="meta">+60 13-887 9921 · TNG verified</div></div>
+          <div class="check"></div>
+        </div>
+        <div class="contact-row" data-name="hafiz ramlan" onclick="toggleContactSelect(this)">
+          <div class="av" style="background:#E0354B">HR</div>
+          <div class="body"><div class="name">Hafiz Ramlan</div><div class="meta">+60 11-220 4456 · TNG verified</div></div>
+          <div class="check"></div>
+        </div>
+        <div class="contact-row" data-name="lim mei ling" onclick="toggleContactSelect(this)">
+          <div class="av" style="background:#1FB36B">LM</div>
+          <div class="body"><div class="name">Lim Mei Ling</div><div class="meta">+60 16-554 8829 · TNG verified</div></div>
+          <div class="check"></div>
+        </div>
+      </div>
+
+      <!-- Section: existing members -->
+      <div class="conn-section-header" style="margin-top:18px">
+        <div class="conn-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+          Currently in your Trust Link
+        </div>
+        <div class="conn-section-sub">Tap to manage relationship</div>
+      </div>
+
+      <div class="contact-list">
+        <div class="contact-row in-network" data-name="farid" onclick="goManageFromConnections('Farid Ahmad','FA','#5B3FD9','+60 12-555 7788','Family',812)">
+          <div class="av" style="background:#5B3FD9">FA</div>
+          <div class="body"><div class="name">Farid Ahmad</div><div class="meta">Guarantor · Family · 3 yrs</div></div>
+          <div class="check-score">812</div>
+        </div>
+        <div class="contact-row in-network" data-name="siti" onclick="goManageFromConnections('Siti Lim','SL','#1FB36B','+60 13-887 9921','Niece',795)">
+          <div class="av" style="background:#1FB36B">SL</div>
+          <div class="body"><div class="name">Siti Lim</div><div class="meta">Guarantee · Niece · 5 yrs</div></div>
+          <div class="check-score">795</div>
+        </div>
+        <div class="contact-row in-network" data-name="rajesh" onclick="goManageFromConnections('Rajesh Kumar','RK','#5B3FD9','+60 11-220 4456','Colleague',688)">
+          <div class="av" style="background:#5B3FD9">RK</div>
+          <div class="body"><div class="name">Rajesh Kumar</div><div class="meta">Guarantee · Colleague · 2 yrs</div></div>
+          <div class="check-score" style="color:var(--tng-warn)">688</div>
+        </div>
+      </div>
+
+      <div class="picker-cta-bar">
+        <div id="selectedSummary" class="selected-summary">
+          <div style="display:flex;align-items:center" id="selectedAvatars"></div>
+          <span style="flex:1;color:var(--tng-text-muted);margin-left:6px"><b id="selectedCountLbl" style="color:var(--tng-text)">0</b> selected to add</span>
+          <span class="clear-link" onclick="clearSelections()">Clear</span>
+        </div>
+        <button id="trustNextBtn" disabled onclick="openConsent()">Create</button>
+      </div>
+    </div>
+
+    <!-- ============ GUARANTOR: LOAN REQUESTS ============ -->
+    <div class="page" id="page-loan-requests">
+      <div class="sub-header">
+        <div class="sub-nav">
+          <div class="sub-back" onclick="navigateTo('borrowed')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </div>
+          <div class="sub-title">Loan Requests</div>
+        </div>
+      </div>
+
+      <div class="section-label">Pending Approval <span class="badge">2</span></div>
+
+      <!-- Request 1 -->
+      <div class="loan-req-card" id="loanReq1">
+        <div class="loan-req-top">
+          <div class="av" style="background:#1A4FBE">SL</div>
+          <div class="info">
+            <div class="who">Siti Lim</div>
+            <div class="rel">Guarantee · Niece · Trust 795</div>
+          </div>
+          <div class="pending-pill"><span class="pending-dot"></span>Pending</div>
+        </div>
+        <div class="loan-req-amount"><span class="rm">RM</span>2,500</div>
+        <div class="loan-req-meta">
+          <span>📅 12 months</span>
+          <span>📈 6.8% p.a.</span>
+          <span>📦 Personal use</span>
+        </div>
+        <div class="loan-req-actions" id="loanReq1Actions">
+          <button class="decline" onclick="declineLoanReq(1)">Decline</button>
+          <button class="approve" onclick="approveLoanReq(1)">Approve</button>
+        </div>
+      </div>
+
+      <!-- Request 2 -->
+      <div class="loan-req-card" id="loanReq2">
+        <div class="loan-req-top">
+          <div class="av" style="background:#5B3FD9">RK</div>
+          <div class="info">
+            <div class="who">Rajesh Kumar</div>
+            <div class="rel">Guarantee · Colleague · Trust 688</div>
+          </div>
+          <div class="pending-pill"><span class="pending-dot"></span>Pending</div>
+        </div>
+        <div class="loan-req-amount"><span class="rm">RM</span>1,000</div>
+        <div class="loan-req-meta">
+          <span>📅 6 months</span>
+          <span>📈 6.8% p.a.</span>
+          <span>📦 Medical</span>
+        </div>
+        <div class="loan-req-actions" id="loanReq2Actions">
+          <button class="decline" onclick="declineLoanReq(2)">Decline</button>
+          <button class="approve" onclick="approveLoanReq(2)">Approve</button>
+        </div>
+      </div>
+      <div class="bottom-spacer" style="height:30px"></div>
+    </div>
+
+    <!-- ============ GUARANTOR: LOANS MANAGEMENT ============ -->
+    <div class="page" id="page-borrowed">
+      <div class="sub-header">
+        <div class="sub-nav">
+          <div class="sub-back" onclick="navigateTo('home')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </div>
+          <div class="sub-title" id="borrowedTitle">Trust Link Loans</div>
+        </div>
+      </div>
+
+      <div class="loans-summary" id="loansSummary">
+        <div><div class="lbl">Total Outstanding</div><div class="val" id="sumOutstanding">RM 4,250</div></div>
+        <div class="divider"></div>
+        <div><div class="lbl">Next Due</div><div class="val danger" id="sumNextDue">RM 510</div></div>
+        <div class="divider"></div>
+        <div><div class="lbl">On-time</div><div class="val success">100%</div></div>
+      </div>
+
+      <!-- Guarantor: see Loan Requests button -->
+      <div id="loanRequestsEntry" style="margin:0 16px 10px;display:none">
+        <div onclick="navigateTo('loan-requests')" style="background:var(--tng-blue);color:#fff;border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 4px 16px rgba(26,79,190,.25)">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6M12 9v6"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">Loan Requests Pending</div>
+            <div style="font-size:11px;opacity:.85;margin-top:2px">2 guarantees awaiting your approval</div>
+          </div>
+          <span style="background:var(--tng-yellow);color:var(--tng-text);font-size:11px;font-weight:800;padding:3px 8px;border-radius:8px">2</span>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="filter-tab active" onclick="setBorrowedFilter(this,'active')">Active</div>
+        <div class="filter-tab" onclick="setBorrowedFilter(this,'pending')">Pending</div>
+        <div class="filter-tab" onclick="setBorrowedFilter(this,'completed')">Completed</div>
+      </div>
+
+      <!-- Active loans -->
+      <div id="activeLoans">
+        <!-- Loan 1: own loan (guarantee view) / guarantor monitors -->
+        <div class="loan-card" data-status="active">
+          <div class="loan-card-top">
+            <div class="who">
+              <div class="av" style="background:#1A4FBE" id="loan1Av">A</div>
+              <div class="who-info">
+                <div class="name" id="loan1Name">Aiman (You)</div>
+                <div class="rel" id="loan1Rel">Borrower · Trust Link active</div>
+              </div>
+            </div>
+            <span class="status-badge upcoming">Due in 4 days</span>
+          </div>
+          <div class="loan-amount-row">
+            <div class="amt"><span class="rm">RM</span>3,000</div>
+            <div class="term">6-month plan<b>2 of 6 paid</b></div>
+          </div>
+          <div class="loan-progress"><div style="width:33%"></div></div>
+          <div class="loan-progress-meta">
+            <span>Paid: <b>RM 1,020</b></span>
+            <span>Remaining: <b id="loan1Remaining">RM 2,040</b></span>
+          </div>
+          <div class="loan-due upcoming">
+            <div class="loan-due-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <div class="loan-due-info">
+              <div class="lbl">Next payment · 29 Apr 2026</div>
+              <div class="val">RM 510</div>
+            </div>
+            <button class="loan-due-pay" id="loan1PayBtn" onclick="openPayModal('loan1',510,2040,'29 Apr 2026')">Pay now</button>
+          </div>
+        </div>
+
+        <!-- Loan 2: Siti's loan -->
+        <div class="loan-card" data-status="active">
+          <div class="loan-card-top">
+            <div class="who">
+              <div class="av" style="background:#1FB36B">SL</div>
+              <div class="who-info">
+                <div class="name">Siti Lim</div>
+                <div class="rel" id="loan2Rel">You vouched · Niece</div>
+              </div>
+            </div>
+            <span class="status-badge ontime">Paid on time</span>
+          </div>
+          <div class="loan-amount-row">
+            <div class="amt"><span class="rm">RM</span>1,250</div>
+            <div class="term">3-month plan<b>1 of 3 paid</b></div>
+          </div>
+          <div class="loan-progress"><div style="width:33%"></div></div>
+          <div class="loan-progress-meta">
+            <span>Paid: <b>RM 425</b></span>
+            <span>Remaining: <b>RM 850</b></span>
+          </div>
+          <div class="loan-due">
+            <div class="loan-due-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <div class="loan-due-info">
+              <div class="lbl">Next payment · 15 May 2026</div>
+              <div class="val">RM 425</div>
+            </div>
+            <button class="loan-due-pay muted" id="guarantorRemindBtn" onclick="openGuarantorAction('Siti Lim',425,'15 May 2026')">Remind</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Completed loans -->
+      <div id="completedLoans" style="display:none">
+        <div class="loan-card" style="opacity:.85">
+          <div class="loan-card-top">
+            <div class="who">
+              <div class="av" style="background:#5B3FD9">RK</div>
+              <div class="who-info"><div class="name">Rajesh Kumar</div><div class="rel">You vouched · Colleague</div></div>
+            </div>
+            <span class="status-badge completed">Completed</span>
+          </div>
+          <div class="loan-amount-row">
+            <div class="amt"><span class="rm">RM</span>800</div>
+            <div class="term">3-month plan<b>3 of 3 paid</b></div>
+          </div>
+          <div class="loan-progress"><div style="width:100%"></div></div>
+          <div class="loan-progress-meta">
+            <span>Paid: <b>RM 800</b></span>
+            <span style="color:var(--tng-success)">✓ Trust Link Score +18</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending loans placeholder -->
+      <div id="pendingLoansSection" style="display:none">
+        <div style="margin:30px 16px;text-align:center;color:var(--tng-text-muted)">
+          <div style="font-size:32px;margin-bottom:10px">⏳</div>
+          <div style="font-family:'Sora',sans-serif;font-weight:700;margin-bottom:6px">Pending Loan Requests</div>
+          <div style="font-size:13px">View and approve requests under "Loan Requests"</div>
+          <div onclick="navigateTo('loan-requests')" style="margin-top:14px;background:var(--tng-blue);color:#fff;padding:12px 24px;border-radius:12px;cursor:pointer;display:inline-block;font-weight:700;font-size:13px;font-family:'Sora',sans-serif">Go to Loan Requests</div>
+        </div>
+      </div>
+
+      <div class="bottom-spacer" style="height:30px"></div>
+    </div>
+
+    <!-- ============ LOAN APPLICATION (Guarantee) ============ -->
+    <div class="page" id="page-loan">
+      <div class="sub-header">
+        <div class="sub-nav">
+          <div class="sub-back" onclick="navigateTo('home')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </div>
+          <div class="sub-title">Apply Loan</div>
+        </div>
+      </div>
+
+      <!-- Pending status banner (shows after submission) -->
+      <div class="loan-status-banner pending-banner" id="loanPendingBanner" style="display:none">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+        <div class="txt">
+          <div class="ttl">Awaiting Guarantor Approval</div>
+          <div class="sub">Aiman (Guarantor) has been notified. Usually within 24 hrs.</div>
+        </div>
+      </div>
+
+      <!-- Approved status banner -->
+      <div class="loan-status-banner approved-banner" id="loanApprovedBanner" style="display:none">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <div class="txt">
+          <div class="ttl" style="color:var(--tng-success)">Loan Approved! 🎉</div>
+          <div class="sub">Your guarantor approved. Funds disbursed to wallet.</div>
+        </div>
+      </div>
+
+      <div class="loan-hero">
+        <div class="eyebrow">Trust Link · Eligible Amount</div>
+        <div class="max-amt"><span class="rm">RM</span><span id="maxAmt">12,500</span></div>
+        <div class="helper">at 6.8% p.a. · Powered by your Trust Link</div>
+        <div class="loan-scores">
+          <div class="loan-score-mini">
+            <div class="lbl">Personal Score</div>
+            <div class="val" id="loanPersonalScore">738</div>
+            <div class="delta">Behavioural · 12wk streak</div>
+          </div>
+          <div class="loan-score-mini">
+            <div class="lbl">Trust Link Score</div>
+            <div class="val yellow" id="loanTrustScore">812</div>
+            <div class="delta">3 members · <b>+RM 7.5K</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sim-card" id="loanSimCard">
+        <h3>How much do you need?<span class="max-tag">Max <b>RM 12,500</b></span></h3>
+        <div class="amount-display">
+          <span class="rm">RM</span>
+          <span class="num" id="loanAmt">3,000</span>
+        </div>
+        <div class="slider-wrap">
+          <input type="range" id="amtSlider" min="500" max="12500" step="500" value="3000" />
+          <div class="slider-meta"><span>RM 500</span><span>RM 12,500</span></div>
+        </div>
+        <h3 style="margin-top:18px">Repayment term</h3>
+        <div class="term-row">
+          <div class="term-pill" data-term="3">3 mo</div>
+          <div class="term-pill active" data-term="6">6 mo</div>
+          <div class="term-pill" data-term="12">12 mo</div>
+          <div class="term-pill" data-term="24">24 mo</div>
+        </div>
+      </div>
+
+      <div class="summary-box">
+        <h3>Loan Summary</h3>
+        <div class="summary-row"><span class="lhs">Principal</span><span class="rhs" id="sumPrincipal">RM 3,000</span></div>
+        <div class="summary-row"><span class="lhs">Interest rate</span><span class="rhs">6.8% p.a.</span></div>
+        <div class="summary-row"><span class="lhs">Term</span><span class="rhs" id="sumTerm">6 months</span></div>
+        <div class="summary-row"><span class="lhs">Backed by</span><span class="rhs" id="sumBackedBy">Trust Link · 3 members</span></div>
+        <div class="summary-row"><span class="lhs">Guarantor approval</span><span class="rhs" id="sumApprovalStatus" style="color:var(--tng-text-muted)">Required</span></div>
+        <div class="summary-row total"><span class="lhs">Monthly payment</span><span class="rhs" id="sumMonthly">RM 510</span></div>
+      </div>
+
+      <button class="apply-btn" id="applyBtn" onclick="applyLoan()">Submit Loan Application</button>
+      <div style="height:20px"></div>
+    </div>
+
+  </div><!-- /pages -->
+
+  <!-- bottom nav -->
+  <div class="bottom-nav" id="bottomNav">
+    <div class="nav-item active" onclick="navigateTo('home')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12 12 3l9 9v9a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>
+      <span>Home</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('trustnetwork')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/></svg>
+      <span>Network</span>
+    </div>
+    <div class="nav-item nav-scan" onclick="navigateTo('add-trust')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="9" r="4"/><path d="M16 11h6M19 8v6"/></svg>
+    </div>
+    <div class="nav-item" onclick="navigateTo('loan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>
+      <span>Loan</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('borrowed')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+      <span>Loans</span>
+    </div>
+  </div>
+
+  <!-- ========= CONSENT MODAL ========= -->
+  <div class="modal-backdrop" id="consentModal" onclick="closeConsent(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-grip"></div>
+      <div class="consent-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <h2>Confirm Trust Link</h2>
+      <p class="lead">You're adding <b id="consentCountText">1 person</b> to your Trust Link. Each must accept within 48 hours to activate.</p>
+
+      <div style="background:var(--tng-bg);border-radius:14px;padding:12px;margin-bottom:14px;max-height:160px;overflow-y:auto" id="consentMembersList">
+        <!-- Populated by JS -->
+      </div>
+
+      <div class="relationship-picker">
+        <div class="lbl">Default relationship</div>
+        <div class="rel-pills">
+          <div class="rel-pill active" data-rel="Family">Family</div>
+          <div class="rel-pill" data-rel="Friend">Friend</div>
+          <div class="rel-pill" data-rel="Colleague">Colleague</div>
+          <div class="rel-pill" data-rel="Employer">Employer</div>
+          <div class="rel-pill" data-rel="Community">Community</div>
+        </div>
+        <div style="font-size:10px;color:var(--tng-text-muted);margin-top:6px">You can edit each member's relationship later in Manage</div>
+      </div>
+      <div class="consent-rules">
+        <h4>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          Before you confirm
+        </h4>
+        <ul>
+          <li>Each contact must approve the link in their TNG app within 48 hours</li>
+          <li>Either party can revoke the Trust Link at any time</li>
+          <li>Only credit signals are shared — never wallet balance or transactions</li>
+          <li>You may be liable as guarantor if a loan is taken via this link</li>
+        </ul>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeConsentModal()">Cancel</button>
+        <button class="confirm" onclick="confirmTrustLink()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= SUCCESS MODAL (Trust Link created) ========= -->
+  <div class="modal-backdrop" id="successModal" onclick="closeSuccess(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-grip"></div>
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+      </div>
+      <h2>Trust Link request sent!</h2>
+      <p class="lead">We've notified <b id="successName">your contact</b> via TNG. They have <b>48 hours</b> to confirm. Your Trust Link Score will update once accepted.</p>
+      <div class="modal-actions">
+        <button class="confirm" onclick="closeSuccessModal()" style="flex:1">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= REMOVE GUARANTEE MODAL ========= -->
+  <div class="modal-backdrop" id="removeModal" onclick="event.target===this&&closeRemoveModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-grip"></div>
+      <div class="warn-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      </div>
+      <h2>Remove Guarantee?</h2>
+      <p class="lead">Removing <b id="removeTargetName">this contact</b> from your Trust Link will affect their borrowing power. This action requires their consent and takes effect in 24 hours.</p>
+      <div class="consent-rules">
+        <h4>⚠️ Impact</h4>
+        <ul>
+          <li>Their Trust Link Score will be recalculated</li>
+          <li>Any ongoing loans backed by this link remain active</li>
+          <li>New loans will no longer be backed by your guarantee</li>
+        </ul>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeRemoveModal()">Keep Link</button>
+        <button style="flex:1;background:var(--tng-danger);color:#fff;border-radius:14px;padding:14px;font-family:'Sora',sans-serif;font-weight:700;font-size:14px;cursor:pointer;border:none" onclick="confirmRemove()">Yes, Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= PAY MODAL ========= -->
+  <div class="modal-backdrop" id="payModal" onclick="event.target===this&&closePayModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-grip"></div>
+      <div class="consent-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/></svg>
+      </div>
+      <h2>Confirm Repayment</h2>
+      <p class="lead">Repay your instalment using your TNG wallet balance.</p>
+      <div class="pay-breakdown" id="payBreakdown">
+        <div class="row"><span class="lbl">Instalment Amount</span><span id="payInstalment">RM 510</span></div>
+        <div class="row"><span class="lbl">Due Date</span><span id="payDue">29 Apr 2026</span></div>
+        <div class="row"><span class="lbl">Remaining After</span><span id="payRemaining">RM 1,530</span></div>
+        <div class="row"><span class="lbl">💳 From</span><span>TNG Wallet</span></div>
+        <div class="row"><span class="lbl">Total Deducted</span><span id="payTotal">RM 510</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closePayModal()">Cancel</button>
+        <button class="success-btn" onclick="confirmPay()">Confirm & Pay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= PAYMENT SUCCESS MODAL ========= -->
+  <div class="modal-backdrop" id="paySuccessModal" onclick="event.target===this&&closePaySuccessModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-grip"></div>
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+      </div>
+      <h2>Payment Successful! 🎉</h2>
+      <p class="lead">Your repayment of <b id="paidAmount">RM 510</b> has been processed. Remaining balance updated.</p>
+      <div class="pay-breakdown">
+        <div class="row"><span class="lbl">Remaining Balance</span><span id="newBalance" style="color:var(--tng-success);font-weight:700">RM 1,530</span></div>
+        <div class="row"><span class="lbl">Trust Link Score</span><span style="color:var(--tng-success)">+5 pts</span></div>
+        <div class="row"><span class="lbl">Next Due</span><span id="nextDueDisplay">29 May 2026</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="confirm" onclick="closePaySuccessModal()" style="flex:1">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= LOAN SUBMISSION MODAL ========= -->
+  <div class="modal-backdrop" id="loanSubmitModal" onclick="event.target===this&&closeLoanSubmitModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-grip"></div>
+      <div class="success-icon" style="background:linear-gradient(135deg,var(--tng-blue),var(--tng-purple))">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+      </div>
+      <h2>Application Sent!</h2>
+      <p class="lead">Your loan request for <b id="submitAmt">RM 3,000</b> is awaiting guarantor approval.</p>
+
+      <!-- Notification flow visualization -->
+      <div style="background:var(--tng-bg);border-radius:14px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="av" style="width:36px;height:36px;border-radius:50%;background:#1FB36B;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:700;font-size:13px;flex-shrink:0">S</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600">You (Siti)</div>
+            <div style="font-size:10px;color:var(--tng-success)">✓ Application submitted</div>
+          </div>
+        </div>
+        <div style="margin-left:18px;border-left:2px dashed var(--tng-line);padding-left:18px;padding-top:4px;padding-bottom:4px">
+          <div style="font-size:10px;color:var(--tng-text-muted);font-style:italic;margin-bottom:4px">Notification sent via TNG · SMS · Email</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="av" style="width:36px;height:36px;border-radius:50%;background:#1A4FBE;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:700;font-size:13px;flex-shrink:0;position:relative">
+            A
+            <span style="position:absolute;top:-3px;right:-3px;background:var(--tng-warn);color:#fff;font-size:8px;font-weight:800;width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;animation:pulse 1.5s infinite">!</span>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600">Aiman (Guarantor)</div>
+            <div style="font-size:10px;color:var(--tng-warn)">⏱ Reviewing request…</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:10px 12px;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start">
+        <div style="font-size:14px">⏱</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#8B6500">Awaiting approval</div>
+          <div style="font-size:11px;color:var(--tng-text-muted);line-height:1.4;margin-top:2px">Aiman will respond within 24 hours. You'll be notified once approved or declined.</div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeLoanSubmitModal()" style="flex:1">Done</button>
+        <button class="confirm" onclick="closeLoanSubmitModal();navigateTo('borrowed')" style="flex:1">Track Status</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= GUARANTOR ACTION MODAL ========= -->
+  <div class="modal-backdrop" id="guarantorActionModal" onclick="event.target===this&&closeGuarantorActionModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-grip"></div>
+      <div class="consent-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.72 3.45 2 2 0 0 1 3.7 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.18 6.18l1.07-1.07a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </div>
+      <h2 id="guarantorActionTitle">Remind Guarantee</h2>
+      <p class="lead" id="guarantorActionLead">Send a payment reminder to your guarantee member.</p>
+      <div class="pay-breakdown">
+        <div class="row"><span class="lbl">Member</span><span id="gActionName">Siti Lim</span></div>
+        <div class="row"><span class="lbl">Amount Due</span><span id="gActionAmt">RM 425</span></div>
+        <div class="row"><span class="lbl">Due Date</span><span id="gActionDue">15 May 2026</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeGuarantorActionModal()">Cancel</button>
+        <button class="confirm" onclick="confirmGuarantorAction()">Send Reminder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= NODE DETAIL MODAL (from graph tap) ========= -->
+  <div class="modal-backdrop" id="nodeDetailModal" onclick="event.target===this&&closeNodeDetail()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-grip"></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div class="av" id="nodeAv" style="width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:700;color:#fff;font-size:20px;background:#1A4FBE">FA</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <div style="font-family:'Sora',sans-serif;font-size:18px;font-weight:700" id="nodeName">Farid Ahmad</div>
+            <span class="role-tag-mini guarantor" id="nodeGroup">Guarantor</span>
+          </div>
+          <div style="font-size:12px;color:var(--tng-text-muted)" id="nodePhone">+60 12-555 7788</div>
+          <div style="font-size:11px;color:var(--tng-text-muted);margin-top:2px" id="nodeRel">Family · 3 yrs</div>
+        </div>
+        <div class="score-mini" style="text-align:right">
+          <div class="num high" id="nodeScore" style="font-family:'Sora',sans-serif;font-size:24px;font-weight:800">812</div>
+          <div class="lbl" style="font-size:9px;color:var(--tng-text-muted);text-transform:uppercase;letter-spacing:1px">trust</div>
+        </div>
+      </div>
+
+      <div class="pay-breakdown" style="margin-bottom:14px">
+        <div class="row"><span class="lbl">Active Loans</span><span id="nodeActiveLoans" style="font-weight:700">1</span></div>
+        <div class="row"><span class="lbl">Total Borrowed</span><span id="nodeTotalBorrowed" style="font-weight:700">RM 1,250</span></div>
+        <div class="row"><span class="lbl">Repayment History</span><span style="color:var(--tng-success);font-weight:700">100% on-time</span></div>
+        <div class="row"><span class="lbl">Trust Confidence</span><span style="font-weight:700">0.87</span></div>
+      </div>
+
+      <div class="modal-actions" style="flex-direction:column;gap:8px">
+        <button class="confirm" id="nodeManageBtn" onclick="manageFromNode()" style="display:none">Manage Guarantee</button>
+        <div style="display:flex;gap:10px;width:100%">
+          <button class="cancel" onclick="closeNodeDetail()" style="flex:1">Close</button>
+          <button class="confirm" onclick="closeNodeDetail();showToast('Opening profile…')" style="flex:1">View Profile</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+<div class="phone-caption">TNG VoiceTrust · Trust Link Flows</div>
+</div>
+
+<script>
+  // ===== Global State =====
+  let role = 'guarantor';
+  let currentLoanTarget = null;
+  let loanSubmitted = false;
+  let loanApprovedState = false;
+  let loan1Remaining = 2040;
+  let loan1Paid = 1020;
+  let loan1Instalments = 2;
+
+  // ===== Role Switcher =====
+  function setRole(r){
+    role = r;
+    document.querySelectorAll('.role-switcher button').forEach(b => b.classList.remove('active'));
+    document.getElementById('role-'+r).classList.add('active');
+
+    const isG = r === 'guarantor';
+    document.getElementById('roleText').textContent = isG ? 'GUARANTOR · Aiman' : 'GUARANTEE · Siti';
+    document.getElementById('homeAvatar').textContent = isG ? 'A' : 'S';
+    document.getElementById('tgRoleLabel').textContent = isG ? 'Guarantor · Network Anchor' : 'Guarantee · Inheriting Trust';
+    document.getElementById('tgMeta').innerHTML = isG ? '<b>3 active</b> · 2 guarantees · 1 guarantor' : '<b>2 active</b> guarantors backing you · <b>+RM 7.5K</b> borrowing power';
+
+    document.getElementById('loan1Name').textContent = isG ? 'Aiman (You)' : 'Siti (You)';
+    document.getElementById('loan1Rel').textContent = isG ? 'Borrower · Trust Link active' : 'Borrower · Backed by Aiman';
+    document.getElementById('loan1Av').textContent = isG ? 'A' : 'S';
+    document.getElementById('loan1Av').style.background = isG ? '#1A4FBE' : '#1FB36B';
+    document.getElementById('loan2Rel').textContent = isG ? 'You vouched · Niece' : 'Backed by Aiman · Niece';
+
+    // Guarantor-only UI
+    document.getElementById('loanRequestsEntry').style.display = isG ? 'block' : 'none';
+    document.getElementById('homePendingBanner').style.display = isG ? 'block' : 'none';
+    document.getElementById('guarantorRemindBtn').style.display = isG ? 'block' : 'none';
+
+    // Guarantee: show Pay now for Siti's loan (loan2), hide guarantor remind
+    if (!isG) {
+      document.getElementById('guarantorRemindBtn').textContent = 'Pay now';
+      document.getElementById('guarantorRemindBtn').className = 'loan-due-pay';
+      document.getElementById('guarantorRemindBtn').onclick = () => openPayModal('loan2',425,850,'15 May 2026');
+    } else {
+      document.getElementById('guarantorRemindBtn').textContent = 'Remind';
+      document.getElementById('guarantorRemindBtn').className = 'loan-due-pay muted';
+      document.getElementById('guarantorRemindBtn').onclick = () => openGuarantorAction('Siti Lim',425,'15 May 2026');
+    }
+
+    // Update banner per role
+    document.getElementById('sumBackedBy').textContent = isG ? 'Trust Link · 3 members' : 'Aiman (Guarantor)';
+
+    // Show/hide loan status banners
+    if (!isG && loanSubmitted) {
+      document.getElementById('loanPendingBanner').style.display = loanApprovedState ? 'none' : 'flex';
+      document.getElementById('loanApprovedBanner').style.display = loanApprovedState ? 'flex' : 'none';
+      document.getElementById('applyBtn').style.display = 'none';
+    } else if (isG) {
+      document.getElementById('loanPendingBanner').style.display = 'none';
+      document.getElementById('loanApprovedBanner').style.display = 'none';
+      document.getElementById('applyBtn').style.display = 'block';
+      document.getElementById('applyBtn').textContent = 'Submit Loan Application';
+    }
+
+    document.getElementById('borrowedTitle').textContent = isG ? 'Trust Link Loans' : 'My Loans';
+    showToast('Switched to ' + (isG ? 'Guarantor' : 'Guarantee') + ' view');
+  }
+
+  // ===== Navigation =====
+  let currentPage = 'home';
+  function navigateTo(target){
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-'+target).classList.add('active');
+    currentPage = target;
+    document.getElementById('bottomNav').style.display = 'flex';
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    const navMap = {home:0, trustnetwork:1, 'add-trust':2, loan:3, borrowed:4};
+    const navItems = document.querySelectorAll('.nav-item');
+    if (navMap[target] !== undefined) navItems[navMap[target]]?.classList.add('active');
+    if (target === 'trustnetwork'){ animateMiniScore(); drawTrustGraph(); }
+  }
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ===== Mini Score Animate =====
+  function animateMiniScore(){
+    const finalScore = 812, max = 850, circ = 264;
+    const ring = document.getElementById('miniRing');
+    const num = document.getElementById('miniScoreNum');
+    const offset = circ - (finalScore / max) * circ;
+    ring.style.transition = 'none';
+    ring.style.strokeDashoffset = circ;
+    setTimeout(() => {
+      ring.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1)';
+      ring.style.strokeDashoffset = offset;
+    }, 80);
+    let curr = 0;
+    const step = () => {
+      curr += Math.ceil((finalScore - curr) / 12);
+      if (curr >= finalScore) curr = finalScore;
+      num.textContent = curr;
+      if (curr < finalScore) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  // ===== Trust Graph =====
+  let graphDrawn = false;
+  function drawTrustGraph(){
+    if (graphDrawn) return;
+    graphDrawn = true;
+    const svg = d3.select('#trustGraph');
+    const W = 340, H = 280;
+    svg.html('');
+    const nodes = [
+      {id:'You', group:'self', r:24, color:'#1A4FBE', score:738, av:'A', phone:'You', rel:'-', activeLoans:1, totalBorrowed:3000},
+      {id:'Farid', group:'guarantor', r:18, color:'#5B3FD9', score:812, av:'FA', bg:'#5B3FD9', phone:'+60 12-555 7788', rel:'Family · 3 yrs', activeLoans:0, totalBorrowed:0},
+      {id:'Siti', group:'guarantee', r:18, color:'#1FB36B', score:795, av:'SL', bg:'#1FB36B', phone:'+60 13-887 9921', rel:'Niece · 5 yrs', activeLoans:1, totalBorrowed:1250},
+      {id:'Rajesh', group:'guarantee', r:16, color:'#1FB36B', score:688, av:'RK', bg:'#5B3FD9', phone:'+60 11-220 4456', rel:'Colleague · 2 yrs', activeLoans:0, totalBorrowed:800},
+      {id:'Maya', group:'extended', r:14, color:'#94A3B8', score:742, av:'MN', bg:'#94A3B8', phone:'+60 12-998 1122', rel:'Via Farid · 4 yrs', activeLoans:0, totalBorrowed:0},
+      {id:'Hafiz', group:'extended', r:13, color:'#CBD5E1', score:701, av:'HF', bg:'#CBD5E1', phone:'+60 17-445 2233', rel:'Via Siti · 1 yr', activeLoans:0, totalBorrowed:0}
+    ];
+    const links = [
+      {source:'Farid', target:'You', strength:0.91, type:'guarantees'},
+      {source:'You', target:'Siti', strength:0.85, type:'guarantees'},
+      {source:'You', target:'Rajesh', strength:0.62, type:'guarantees'},
+      {source:'Farid', target:'Maya', strength:0.7, type:'extended'},
+      {source:'Siti', target:'Hafiz', strength:0.5, type:'extended'}
+    ];
+    const sim = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id(d => d.id).distance(d => 80 - d.strength*30))
+      .force('charge', d3.forceManyBody().strength(-300))
+      .force('center', d3.forceCenter(W/2, H/2))
+      .force('collide', d3.forceCollide(d => d.r + 6));
+    const link = svg.append('g').selectAll('line').data(links).join('line')
+      .attr('stroke', d => d.type==='extended'?'#CBD5E1':(d.strength>0.7?'#1FB36B':'#F59E0B'))
+      .attr('stroke-opacity', 0.6)
+      .attr('stroke-width', d => d.strength*3+1)
+      .attr('stroke-dasharray', d => d.type==='extended'?'4 3':'none');
+    const node = svg.append('g').selectAll('g').data(nodes).join('g')
+      .style('cursor','pointer')
+      .on('click', (e,d) => {
+        if (d.group === 'self') return;
+        openNodeDetail(d);
+      });
+    // Subtle pulse hint on guarantees to indicate clickability
+    node.filter(d => d.group === 'guarantee').append('circle')
+      .attr('r', d => d.r)
+      .attr('fill', 'none')
+      .attr('stroke', d => d.color)
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.4)
+      .style('animation', 'nodePulse 2s ease-in-out infinite');
+    node.append('circle').attr('r', d => d.r).attr('fill', d => d.color).attr('stroke','#fff').attr('stroke-width',2).style('filter','drop-shadow(0 2px 6px rgba(0,0,0,.15))');
+    node.append('text').text(d => d.score).attr('text-anchor','middle').attr('dy',4).attr('font-size','10px').attr('font-weight','800').attr('font-family','Sora,sans-serif').attr('fill','#fff');
+    node.append('text').text(d => d.id).attr('text-anchor','middle').attr('dy', d => d.r+14).attr('font-size','10px').attr('font-weight','600').attr('font-family','Sora,sans-serif').attr('fill','#0B1B3F');
+    sim.on('tick', () => {
+      link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      node.attr('transform', d => `translate(${Math.max(d.r, Math.min(W-d.r, d.x))}, ${Math.max(d.r, Math.min(H-d.r, d.y))})`);
+    });
+  }
+
+  function openNodeDetail(d){
+    document.getElementById('nodeName').textContent = d.id;
+    document.getElementById('nodeAv').textContent = d.av || d.id.slice(0,2).toUpperCase();
+    document.getElementById('nodeAv').style.background = d.bg || d.color;
+    document.getElementById('nodePhone').textContent = d.phone || '—';
+    document.getElementById('nodeRel').textContent = d.rel || '—';
+    const scoreEl = document.getElementById('nodeScore');
+    scoreEl.textContent = d.score;
+    scoreEl.className = 'num ' + (d.score >= 750 ? 'high' : d.score >= 650 ? 'mid' : 'low');
+    const groupLabel = d.group === 'guarantor' ? 'Guarantor' : d.group === 'guarantee' ? 'Guarantee' : 'Extended';
+    document.getElementById('nodeGroup').textContent = groupLabel;
+    document.getElementById('nodeGroup').className = 'role-tag-mini ' + (d.group === 'guarantor' ? 'guarantor' : d.group === 'guarantee' ? 'guarantee' : '');
+    document.getElementById('nodeActiveLoans').textContent = d.activeLoans || 0;
+    document.getElementById('nodeTotalBorrowed').textContent = 'RM ' + fmt(d.totalBorrowed || 0);
+    // Manage button only shows for guarantees
+    document.getElementById('nodeManageBtn').style.display = d.group === 'guarantee' ? 'block' : 'none';
+    // Store target for manage navigation
+    window._currentNode = d;
+    document.getElementById('nodeDetailModal').classList.add('show');
+  }
+  function closeNodeDetail(){ document.getElementById('nodeDetailModal').classList.remove('show'); }
+  function manageFromNode(){
+    const d = window._currentNode;
+    if (!d) return;
+    closeNodeDetail();
+    setTimeout(() => {
+      setManageTarget(d.id + (d.id === 'Siti' ? ' Lim' : d.id === 'Rajesh' ? ' Kumar' : ''), d.av, d.bg, d.phone, d.rel.split(' ·')[0], d.score);
+      navigateTo('manage-guarantee');
+    }, 250);
+  }
+
+  // ===== Member Filter =====
+  function filterMembers(el, type){
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.member-card').forEach(c => {
+      c.style.display = (type==='all' || c.dataset.role===type) ? 'flex' : 'none';
+    });
+  }
+
+  // ===== Contact Picker (multi-select) =====
+  let selectedContacts = [];
+  function toggleContactSelect(el){
+    if (el.classList.contains('in-network')) return;
+    const data = {
+      name: el.querySelector('.name').textContent,
+      av: el.querySelector('.av').textContent,
+      bg: el.querySelector('.av').style.background,
+      meta: el.querySelector('.meta').textContent
+    };
+    const idx = selectedContacts.findIndex(c => c.name === data.name);
+    if (idx >= 0){
+      selectedContacts.splice(idx, 1);
+      el.classList.remove('selected');
+    } else {
+      selectedContacts.push(data);
+      el.classList.add('selected');
+    }
+    updateSelectionSummary();
+  }
+
+  function updateSelectionSummary(){
+    const summary = document.getElementById('selectedSummary');
+    const lbl = document.getElementById('selectedCountLbl');
+    const avContainer = document.getElementById('selectedAvatars');
+    const btn = document.getElementById('trustNextBtn');
+    const overviewSel = document.getElementById('connSelectedNum');
+    if (overviewSel) overviewSel.textContent = selectedContacts.length;
+    if (selectedContacts.length === 0){
+      summary.classList.remove('visible');
+      btn.disabled = true;
+      btn.textContent = 'Create';
+    } else {
+      summary.classList.add('visible');
+      lbl.textContent = selectedContacts.length;
+      avContainer.innerHTML = selectedContacts.slice(0,4).map(c =>
+        `<span class="stacked-av" style="background:${c.bg}">${c.av}</span>`
+      ).join('');
+      if (selectedContacts.length > 4) {
+        avContainer.innerHTML += `<span class="stacked-av" style="background:#94A3B8">+${selectedContacts.length-4}</span>`;
+      }
+      btn.disabled = false;
+      btn.textContent = `Create (${selectedContacts.length})`;
+    }
+  }
+
+  function goManageFromConnections(name, av, bg, phone, rel, score){
+    setManageTarget(name, av, bg, phone, rel, score);
+    navigateTo('manage-guarantee');
+  }
+
+  function clearSelections(){
+    selectedContacts = [];
+    document.querySelectorAll('.contact-row').forEach(r => r.classList.remove('selected'));
+    updateSelectionSummary();
+  }
+
+  function filterContacts(q){
+    q = q.toLowerCase();
+    document.querySelectorAll('#contactListA .contact-row').forEach(r => {
+      r.style.display = (r.dataset.name||'').toLowerCase().includes(q) ? 'flex' : 'none';
+    });
+  }
+
+  // ===== Consent Modal =====
+  function openConsent(){
+    if (selectedContacts.length === 0) return;
+    document.getElementById('consentCountText').innerHTML =
+      selectedContacts.length === 1 ? '<b>1 person</b>' : `<b>${selectedContacts.length} people</b>`;
+    document.getElementById('consentMembersList').innerHTML = selectedContacts.map(c => `
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+        <div class="av" style="width:32px;height:32px;border-radius:50%;background:${c.bg};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:700;font-size:12px;flex-shrink:0">${c.av}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">${c.name}</div>
+          <div style="font-size:10px;color:var(--tng-text-muted)">${c.meta}</div>
+        </div>
+        <div style="font-size:10px;color:var(--tng-warn);font-weight:700">PENDING</div>
+      </div>
+    `).join('');
+    document.getElementById('consentModal').classList.add('show');
+  }
+  function closeConsent(e){ if (e.target.id==='consentModal') closeConsentModal(); }
+  function closeConsentModal(){ document.getElementById('consentModal').classList.remove('show'); }
+  document.querySelectorAll('.rel-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.rel-pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+    });
+  });
+  function confirmTrustLink(){
+    closeConsentModal();
+    setTimeout(() => {
+      const count = selectedContacts.length;
+      const namesEl = document.getElementById('successName');
+      if (count === 1){
+        namesEl.textContent = selectedContacts[0].name;
+      } else if (count === 2){
+        namesEl.textContent = `${selectedContacts[0].name} and ${selectedContacts[1].name}`;
+      } else {
+        namesEl.textContent = `${selectedContacts[0].name} and ${count-1} others`;
+      }
+      document.getElementById('successModal').classList.add('show');
+    }, 200);
+  }
+  function closeSuccess(e){ if (e.target.id==='successModal') closeSuccessModal(); }
+  function closeSuccessModal(){
+    document.getElementById('successModal').classList.remove('show');
+    setTimeout(() => {
+      document.querySelectorAll('.contact-row').forEach(r => r.classList.remove('selected'));
+      selectedContacts = [];
+      updateSelectionSummary();
+      navigateTo('trustnetwork');
+    }, 300);
+  }
+
+  // ===== Manage Guarantee =====
+  // Realistic per-member synthetic profile data for demo
+  const memberProfiles = {
+    'Siti Lim':       { email:'siti.lim@gmail.com',         ic:'9508**-**-****', joined:'Mar 2021 · 5 years',  linked:'Jan 2024 · 2 yrs in your network',  desc:'My niece. Helps run the family stall. Trustworthy and reliable.', tier:'Excellent', delta:12, behav:88, repay:100, conf:0.87 },
+    'Rajesh Kumar':   { email:'rajesh.k@yahoo.com',         ic:'8807**-**-****', joined:'Jul 2019 · 6 years',  linked:'Aug 2024 · 8 mo in your network',   desc:'Colleague at the warehouse. Reliable but recently changed jobs.',  tier:'Fair',     delta:-5, behav:65, repay:85,  conf:0.62 },
+    'Farid Ahmad':    { email:'farid.ahmad@outlook.com',    ic:'7204**-**-****', joined:'Sep 2018 · 7 years',  linked:'Feb 2023 · 3 yrs in your network',  desc:'Brother-in-law. Long-standing relationship, strong financial habits.', tier:'Excellent', delta:8,  behav:92, repay:100, conf:0.91 },
+    'Maya Nair':      { email:'maya.nair@gmail.com',        ic:'9012**-**-****', joined:'Apr 2020 · 6 years',  linked:'Via Farid · 4 yrs known',           desc:'Connected via Farid. 2-hop in trust graph.',                       tier:'Good',     delta:6,  behav:80, repay:95,  conf:0.74 }
+  };
+
+  function setManageTarget(name, av, bg, phone, rel, score){
+    const p = memberProfiles[name] || { email:'—', ic:'—', joined:'—', linked:'—', desc:'', tier:'Good', delta:0, behav:75, repay:90, conf:0.75 };
+    document.getElementById('mgAv').textContent = av;
+    document.getElementById('mgAv').style.background = bg;
+    document.getElementById('mgName').textContent = name;
+    document.getElementById('mgPhone').textContent = phone;
+    document.getElementById('mgEmail').textContent = p.email;
+    document.getElementById('mgIC').textContent = p.ic;
+    document.getElementById('mgJoined').textContent = p.joined;
+    document.getElementById('mgLinkedSince').textContent = p.linked;
+    document.getElementById('mgScore').textContent = score;
+    document.getElementById('mgRelSelect').value = rel;
+    document.getElementById('mgDesc').value = p.desc;
+    document.getElementById('mgCap').value = '5000';
+    document.getElementById('removeTargetName').textContent = name;
+
+    // Score tier and delta
+    const tierEl = document.getElementById('mgScoreTier');
+    tierEl.textContent = p.tier;
+    tierEl.style.background = score >= 750 ? 'var(--tng-success)' : score >= 650 ? 'var(--tng-warn)' : 'var(--tng-danger)';
+
+    const deltaEl = document.querySelector('.mg-score-delta');
+    if (deltaEl){
+      const delta = p.delta;
+      deltaEl.style.color = delta >= 0 ? 'var(--tng-success)' : 'var(--tng-danger)';
+      deltaEl.querySelector('svg').innerHTML = delta >= 0
+        ? '<path d="m6 15 6-6 6 6"/>'
+        : '<path d="m6 9 6 6 6-6"/>';
+      deltaEl.querySelector('span').innerHTML = `<b>${delta >= 0 ? '+' : ''}${delta}</b> in last 30 days`;
+    }
+
+    // Animate ring + bars
+    const ring = document.getElementById('mgScoreRing');
+    const circ = 264;
+    const offset = circ - (score / 850) * circ;
+    ring.style.transition = 'none';
+    ring.style.strokeDashoffset = circ;
+    setTimeout(() => {
+      ring.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)';
+      ring.style.strokeDashoffset = offset;
+    }, 100);
+
+    // Score breakdown bars
+    const bars = document.querySelectorAll('.mg-score-row-bar > div');
+    if (bars[0]) { bars[0].style.width = '0%'; setTimeout(() => bars[0].style.width = p.behav + '%', 200); }
+    if (bars[1]) { bars[1].style.width = '0%'; setTimeout(() => bars[1].style.width = p.repay + '%', 300); }
+    if (bars[2]) { bars[2].style.width = '0%'; setTimeout(() => bars[2].style.width = (p.conf*100) + '%', 400); }
+
+    const vals = document.querySelectorAll('.mg-score-row-val');
+    if (vals[0]) vals[0].textContent = '+' + Math.round(p.behav * 1.9);
+    if (vals[1]) { vals[1].textContent = p.repay + '%'; vals[1].style.color = p.repay >= 95 ? 'var(--tng-success)' : 'var(--tng-warn)'; }
+    if (vals[2]) vals[2].textContent = p.conf.toFixed(2);
+  }
+  function saveManageGuarantee(){
+    const name = document.getElementById('mgName').textContent;
+    showToast('Saved · ' + name + ' updated ✓');
+    setTimeout(() => navigateTo('trustnetwork'), 1000);
+  }
+  function openRemoveModal(){ document.getElementById('removeModal').classList.add('show'); }
+  function closeRemoveModal(){ document.getElementById('removeModal').classList.remove('show'); }
+  function confirmRemove(){
+    closeRemoveModal();
+    showToast('Trust Link removed · pending 24hr confirmation');
+    setTimeout(() => navigateTo('trustnetwork'), 1200);
+  }
+
+  // ===== Loan Requests (Guarantor) =====
+  function approveLoanReq(id){
+    const actEl = document.getElementById('loanReq'+id+'Actions');
+    actEl.innerHTML = '<div class="approved-badge" style="flex:1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>Approved — Funds disbursed</div>';
+    // Update pending pill in the card header
+    const card = document.getElementById('loanReq'+id);
+    const pill = card.querySelector('.pending-pill');
+    if(pill){ pill.innerHTML = '✓ Approved'; pill.style.background='rgba(31,179,107,.12)'; pill.style.color='var(--tng-success)'; pill.style.border='1px solid rgba(31,179,107,.3)'; }
+    showToast('✅ Loan approved · funds disbursed');
+    // If loan req 1 (Siti's) approved, also trigger guarantee view to show approved
+    if(id===1){ loanApprovedState = true; }
+  }
+  function declineLoanReq(id){
+    const actEl = document.getElementById('loanReq'+id+'Actions');
+    actEl.innerHTML = '<div style="flex:1;text-align:center;padding:10px;font-size:12px;color:var(--tng-danger);font-weight:700;background:rgba(224,53,75,.08);border-radius:10px">❌ Declined</div>';
+    showToast('Loan request declined');
+  }
+
+  // ===== Borrowed Filter =====
+  function setBorrowedFilter(el, filter){
+    document.querySelectorAll('.filter-row .filter-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('activeLoans').style.display = filter==='active'?'block':'none';
+    document.getElementById('completedLoans').style.display = filter==='completed'?'block':'none';
+    document.getElementById('pendingLoansSection').style.display = filter==='pending'?'block':'none';
+  }
+
+  // ===== Pay Modal =====
+  let payTarget = null;
+  function openPayModal(loanId, amount, remaining, dueDate){
+    payTarget = {loanId, amount, remaining};
+    document.getElementById('payInstalment').textContent = 'RM ' + amount.toLocaleString('en-MY');
+    document.getElementById('payDue').textContent = dueDate;
+    document.getElementById('payRemaining').textContent = 'RM ' + (remaining - amount).toLocaleString('en-MY');
+    document.getElementById('payTotal').textContent = 'RM ' + amount.toLocaleString('en-MY');
+    document.getElementById('payModal').classList.add('show');
+  }
+  function closePayModal(){ document.getElementById('payModal').classList.remove('show'); }
+  function confirmPay(){
+    closePayModal();
+    if(!payTarget) return;
+    const newRem = payTarget.remaining - payTarget.amount;
+    const nextDue = '29 May 2026';
+    document.getElementById('paidAmount').textContent = 'RM ' + payTarget.amount.toLocaleString('en-MY');
+    document.getElementById('newBalance').textContent = newRem > 0 ? 'RM ' + newRem.toLocaleString('en-MY') : 'RM 0 · Fully Cleared 🎉';
+    document.getElementById('nextDueDisplay').textContent = newRem > 0 ? nextDue : 'None';
+    document.getElementById('paySuccessModal').classList.add('show');
+    // Update UI
+    if(payTarget.loanId === 'loan1'){
+      loan1Remaining = newRem;
+      loan1Instalments++;
+      document.getElementById('loan1Remaining').textContent = newRem > 0 ? 'RM '+newRem.toLocaleString('en-MY') : 'Cleared';
+      const pct = Math.min(100, Math.round((loan1Instalments/6)*100));
+      const bar = document.querySelector('#activeLoans .loan-card:first-child .loan-progress > div');
+      if(bar) bar.style.width = pct + '%';
+      const payBtn = document.getElementById('loan1PayBtn');
+      if(newRem <= 0 && payBtn){ payBtn.textContent='Cleared ✓'; payBtn.disabled=true; payBtn.style.opacity='.5'; }
+    }
+  }
+  function closePaySuccessModal(){ document.getElementById('paySuccessModal').classList.remove('show'); }
+
+  // ===== Guarantor Action (Pay/Remind for member) =====
+  function openGuarantorAction(name, amt, due){
+    document.getElementById('guarantorActionTitle').textContent = 'Remind ' + name;
+    document.getElementById('guarantorActionLead').textContent = 'Send a payment reminder via TNG push notification + SMS.';
+    document.getElementById('gActionName').textContent = name;
+    document.getElementById('gActionAmt').textContent = 'RM ' + amt.toLocaleString('en-MY');
+    document.getElementById('gActionDue').textContent = due;
+    const btn = document.querySelector('#guarantorActionModal .confirm');
+    btn.textContent = 'Send Reminder';
+    btn.onclick = confirmGuarantorAction;
+    document.getElementById('guarantorActionModal').classList.add('show');
+  }
+  function openPayOnBehalf(name, amt, due){
+    document.getElementById('guarantorActionTitle').textContent = 'Pay on behalf';
+    document.getElementById('guarantorActionLead').innerHTML = `Cover this instalment for <b>${name}</b> using your TNG wallet. They will be notified.`;
+    document.getElementById('gActionName').textContent = name;
+    document.getElementById('gActionAmt').textContent = 'RM ' + amt.toLocaleString('en-MY');
+    document.getElementById('gActionDue').textContent = due;
+    const btn = document.querySelector('#guarantorActionModal .confirm');
+    btn.textContent = 'Confirm Payment';
+    btn.onclick = () => {
+      closeGuarantorActionModal();
+      showToast('✓ Paid RM ' + amt + ' on behalf of ' + name);
+    };
+    document.getElementById('guarantorActionModal').classList.add('show');
+  }
+  function closeGuarantorActionModal(){ document.getElementById('guarantorActionModal').classList.remove('show'); }
+  function confirmGuarantorAction(){
+    closeGuarantorActionModal();
+    showToast('Reminder sent to ' + document.getElementById('gActionName').textContent + ' ✉️');
+  }
+
+  // ===== Loan Application =====
+  const slider = document.getElementById('amtSlider');
+  let term = 6;
+  function fmt(n){return n.toLocaleString('en-MY')}
+  function recalc(){
+    const amt = parseInt(slider.value);
+    const rate=0.068, mr=rate/12;
+    const monthly=(amt*mr*Math.pow(1+mr,term))/(Math.pow(1+mr,term)-1);
+    document.getElementById('loanAmt').textContent = fmt(amt);
+    document.getElementById('sumPrincipal').textContent = 'RM '+fmt(amt);
+    document.getElementById('sumTerm').textContent = term+' months';
+    document.getElementById('sumMonthly').textContent = 'RM '+fmt(Math.round(monthly));
+    const pct=((amt-500)/(12500-500))*100;
+    slider.style.setProperty('--p', pct+'%');
+  }
+  slider.addEventListener('input', recalc);
+  document.querySelectorAll('.term-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.term-pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      term = parseInt(p.dataset.term);
+      recalc();
+    });
+  });
+  recalc();
+
+  function applyLoan(){
+    const amt = parseInt(slider.value);
+    document.getElementById('submitAmt').textContent = 'RM ' + fmt(amt);
+    document.getElementById('loanSubmitModal').classList.add('show');
+    loanSubmitted = true;
+  }
+  function closeLoanSubmitModal(){
+    document.getElementById('loanSubmitModal').classList.remove('show');
+    // Show pending banner
+    document.getElementById('loanPendingBanner').style.display = 'flex';
+    document.getElementById('loanApprovedBanner').style.display = 'none';
+    document.getElementById('applyBtn').style.display = 'none';
+    document.getElementById('sumApprovalStatus').textContent = 'Pending';
+    document.getElementById('sumApprovalStatus').style.color = 'var(--tng-warn)';
+    showToast('Guarantor notified · awaiting approval');
+  }
+
+  // Initial setup
+  setRole('guarantor');
+  navigateTo('home');
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "ekyc-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "src/frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w src/frontend",
+    "build": "npm run build -w src/frontend",
+    "install:all": "npm install",
+
+    "java:wrapper": "cd src/java-services && gradle wrapper --gradle-version 8.7",
+    "java:build": "cd src/java-services && ./gradlew clean bootJar --no-daemon",
+    "java:dev": "concurrently -n java-auth,java-kyc,java-gateway,frontend -c blue,green,yellow,cyan \"cd src/java-services && ./gradlew :auth-service:bootRun --no-daemon\" \"cd src/java-services && ./gradlew :kyc-service:bootRun --no-daemon\" \"cd src/java-services && ./gradlew :api-gateway:bootRun --no-daemon\" \"npm run dev -w src/frontend\"",
+    "java:start": "concurrently -n java-auth,java-kyc,java-gateway -c blue,green,yellow \"java -jar src/java-services/auth-service/build/libs/auth-service-1.0.0.jar\" \"java -jar src/java-services/kyc-service/build/libs/kyc-service-1.0.0.jar\" \"java -jar src/java-services/api-gateway/build/libs/api-gateway-1.0.0.jar\"",
+    "java:test": "cd src/java-services && ./gradlew test --no-daemon",
+
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+
+    "aws:create-repos": "bash scripts/create-ecr-repos.sh",
+    "aws:deploy": "bash scripts/deploy-aws.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

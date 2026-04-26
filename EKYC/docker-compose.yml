@@ -1,0 +1,89 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:8000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  auth-service:
+    build:
+      context: src/java-services
+      dockerfile: auth-service/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      AUTH_SERVICE_PORT: 3001
+      GATEWAY_URL: http://api-gateway:3000
+      SPRING_PROFILES_ACTIVE: docker
+      LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/auth/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  kyc-service:
+    build:
+      context: src/java-services
+      dockerfile: kyc-service/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      KYC_SERVICE_PORT: 3002
+      GATEWAY_URL: http://api-gateway:3000
+      AWS_REGION: ${AWS_REGION:-ap-southeast-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-local}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-local}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-local-bucket}
+      DYNAMODB_TABLE: ${DYNAMODB_TABLE:-ekyc-application}
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/api/kyc/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: src/java-services
+      dockerfile: api-gateway/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      GATEWAY_PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:3001
+      KYC_SERVICE_URL: http://kyc-service:3002
+      FRONTEND_URL: http://localhost:80
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      kyc-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: src/frontend
+    ports:
+      - "80:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    restart: unless-stopped
